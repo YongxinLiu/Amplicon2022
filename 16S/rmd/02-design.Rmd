@@ -1,0 +1,9 @@
+
+# 课题设计 {#project_design}
+
+样品准备如 Table \@ref(tab:design) 所示。[design.txt](doc/design.txt)
+
+```{r design}
+table_design <- read.table("doc/design.txt", sep="\t", header=T)
+knitr::kable(table_design, caption="样品详细及分组信息总结。", booktabs=TRUE)
+```

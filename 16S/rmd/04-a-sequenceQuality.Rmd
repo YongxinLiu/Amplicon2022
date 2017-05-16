@@ -1,0 +1,91 @@
+
+# 测序质量总结 {#sequencing_quality_summary}
+
+## 测序质量评估 {#sub-sequence-qc}
+
+说明：16S扩增子测序数据主要来自HiSeq2500产出的双端各250 bp (PE250)数据，因为读长长且价格便宜(性价比高)。HiSeqX PE150和MiSeq PE300也比较常见，但PE150过短分辨率低，而PE300价格高且末端序列质量过低。此外454在之前研究较多且设备已经停产，PacBio读长长可直接测序16S全长1.5kb代表未来的趋势。测序公司通常会返回raw data和clean data两种数据，raw data为测序获得的原始数据，而clean data则为去除含有接头序列及测序不确定N比例较高的结果，通常直接采用clean data进行质量评估及后续分析。数据质量评估结果中测序reads碱基质量分布图，常用于判断建库或测序有无异常。序列重复情况分布，判断原始序列的DNA质量、重复序列比例及PCR扩增重复情况，如重复序列较高可能某些菌高丰度或PCR扩增导致，对低丰度菌的结果影响较大。
+
+
+### 文库L1质量评估
+(ref:quality-fastqc-L1) 测序Reads质量评估文库L1。Clean reads左端(A)和右端(B)数据质量评估；clean reads左端(C)和右端(D)序列重复情况分布。Quality control of clean reads [HTML report of library L1_1](clean_data/L1_1_fastqc.html)  [HTML report of library L1_2](clean_data/L1_2_fastqc.html)
+
+```{r quality-fastqc-L1, fig.cap="(ref:quality-fastqc-L1)", out.width="49%"}
+figs_1 = paste0("clean_data/L1_", c("1_fastqc/Images/per_base_quality", "2_fastqc/Images/per_base_quality", "1_fastqc/Images/duplication_levels", "2_fastqc/Images/duplication_levels"),".png")
+knitr::include_graphics(figs_1)
+```
+
+(ref:quality-split-L1) 文库L1各样品按barcode拆分获得的高质量测序数据，按实验设计组着色。Distribution of sequenced reads of samples in library L1. Samples were colored by group information. 1 Million = 10^6^. [PDF](result/stat_lib_split_L1.pdf)
+
+```{r quality-split-L1, fig.cap="(ref:quality-split-L1)"}
+knitr::include_graphics("result/stat_lib_split_L1.png")
+```
+
+
+### 文库T1质量评估
+(ref:quality-fastqc-T1) 测序Reads质量评估文库T1。Clean reads左端(A)和右端(B)数据质量评估；clean reads左端(C)和右端(D)序列重复情况分布。Quality control of clean reads [HTML report of library T1_1](clean_data/T1_1_fastqc.html)  [HTML report of library T1_2](clean_data/T1_2_fastqc.html)
+
+```{r quality-fastqc-T1, fig.cap="(ref:quality-fastqc-T1)", out.width="49%"}
+figs_1 = paste0("clean_data/T1_", c("1_fastqc/Images/per_base_quality", "2_fastqc/Images/per_base_quality", "1_fastqc/Images/duplication_levels", "2_fastqc/Images/duplication_levels"),".png")
+knitr::include_graphics(figs_1)
+```
+
+(ref:quality-split-T1) 文库T1各样品按barcode拆分获得的高质量测序数据，按实验设计组着色。Distribution of sequenced reads of samples in library T1. Samples were colored by group information. 1 Million = 10^6^. [PDF](result/stat_lib_split_T1.pdf)
+
+```{r quality-split-T1, fig.cap="(ref:quality-split-T1)"}
+knitr::include_graphics("result/stat_lib_split_T1.png")
+```
+
+
+### 文库T2质量评估
+(ref:quality-fastqc-T2) 测序Reads质量评估文库T2。Clean reads左端(A)和右端(B)数据质量评估；clean reads左端(C)和右端(D)序列重复情况分布。Quality control of clean reads [HTML report of library T2_1](clean_data/T2_1_fastqc.html)  [HTML report of library T2_2](clean_data/T2_2_fastqc.html)
+
+```{r quality-fastqc-T2, fig.cap="(ref:quality-fastqc-T2)", out.width="49%"}
+figs_1 = paste0("clean_data/T2_", c("1_fastqc/Images/per_base_quality", "2_fastqc/Images/per_base_quality", "1_fastqc/Images/duplication_levels", "2_fastqc/Images/duplication_levels"),".png")
+knitr::include_graphics(figs_1)
+```
+
+(ref:quality-split-T2) 文库T2各样品按barcode拆分获得的高质量测序数据，按实验设计组着色。Distribution of sequenced reads of samples in library T2. Samples were colored by group information. 1 Million = 10^6^. [PDF](result/stat_lib_split_T2.pdf)
+
+```{r quality-split-T2, fig.cap="(ref:quality-split-T2)"}
+knitr::include_graphics("result/stat_lib_split_T2.png")
+```
+
+
+### 文库T3质量评估
+(ref:quality-fastqc-T3) 测序Reads质量评估文库T3。Clean reads左端(A)和右端(B)数据质量评估；clean reads左端(C)和右端(D)序列重复情况分布。Quality control of clean reads [HTML report of library T3_1](clean_data/T3_1_fastqc.html)  [HTML report of library T3_2](clean_data/T3_2_fastqc.html)
+
+```{r quality-fastqc-T3, fig.cap="(ref:quality-fastqc-T3)", out.width="49%"}
+figs_1 = paste0("clean_data/T3_", c("1_fastqc/Images/per_base_quality", "2_fastqc/Images/per_base_quality", "1_fastqc/Images/duplication_levels", "2_fastqc/Images/duplication_levels"),".png")
+knitr::include_graphics(figs_1)
+```
+
+(ref:quality-split-T3) 文库T3各样品按barcode拆分获得的高质量测序数据，按实验设计组着色。Distribution of sequenced reads of samples in library T3. Samples were colored by group information. 1 Million = 10^6^. [PDF](result/stat_lib_split_T3.pdf)
+
+```{r quality-split-T3, fig.cap="(ref:quality-split-T3)"}
+knitr::include_graphics("result/stat_lib_split_T3.png")
+```
+
+
+### 文库T4质量评估
+(ref:quality-fastqc-T4) 测序Reads质量评估文库T4。Clean reads左端(A)和右端(B)数据质量评估；clean reads左端(C)和右端(D)序列重复情况分布。Quality control of clean reads [HTML report of library T4_1](clean_data/T4_1_fastqc.html)  [HTML report of library T4_2](clean_data/T4_2_fastqc.html)
+
+```{r quality-fastqc-T4, fig.cap="(ref:quality-fastqc-T4)", out.width="49%"}
+figs_1 = paste0("clean_data/T4_", c("1_fastqc/Images/per_base_quality", "2_fastqc/Images/per_base_quality", "1_fastqc/Images/duplication_levels", "2_fastqc/Images/duplication_levels"),".png")
+knitr::include_graphics(figs_1)
+```
+
+(ref:quality-split-T4) 文库T4各样品按barcode拆分获得的高质量测序数据，按实验设计组着色。Distribution of sequenced reads of samples in library T4. Samples were colored by group information. 1 Million = 10^6^. [PDF](result/stat_lib_split_T4.pdf)
+
+```{r quality-split-T4, fig.cap="(ref:quality-split-T4)"}
+knitr::include_graphics("result/stat_lib_split_T4.png")
+```
+
+
+## 测序数据预处理总结 {#sub-sequence-summary}
+
+(ref:quality-sum) 测序文库数据量和长度分布。(A) 柱状图展示各文库数据标准化筛选各步骤有效数据分布。主要包括数据低质量及污染序列过滤、双端合并、筛选扩增子并统一序列方向、按barcode拆分样品、去除5’引物序列、去除3’引物序列为下一步分析的高质量样本序列；(B) 折线图展示各测序文库中序列的长度分析。Data size and length distribution of sequencing libraries. (A) Bar plot showing reads count of each library in read filter process. (B) Line plot showing reads length distribution of each library. [Sum PDF](result/stat_lib_qc_sum.pdf)  [Length PDF](result/stat_lib_length.pdf)
+
+```{r quality-sum, fig.cap="(ref:quality-sum)"}
+knitr::include_graphics(c("result/stat_lib_qc_sum.png","result/stat_lib_length.png"))
+```
+

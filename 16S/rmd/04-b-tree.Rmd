@@ -1,0 +1,22 @@
+
+# 高丰度细菌OTU进化树和物种分类树分析 {#result-tree}
+
+## 高丰度OTU进化分析 {#sub-result-ggtree}
+
+(ref:tree-ggtree) 高丰度OTU系统发生树分析(>0.5%)，按分类学门(A. phylum)、纲(B. class)、目(C. order)水平进行着色，结果可以看到本实验中鉴定的细菌OTU主要分布于那些分类级别，同时表明细菌的物种注释信息与16S的序列发生树的进化关系高度一致。Phylogenetic tress show high abundance OTU (>0.5%), and their phylum, class and order annotaion of taxonomy. [phylum PDF](result/ggtree_phylum.pdf); [class PDF](result/ggtree_class.pdf); [order PDF](result/ggtree_order.pdf).
+
+```{r tree-ggtree, fig.cap="(ref:tree-ggtree)", out.width="99%"}
+figs_1 = paste0("result/ggtree_", c("phylum", "class", "order"),".png")
+knitr::include_graphics(figs_1)
+```
+
+
+## 高丰度OTU物种分类树分析 {#sub-result-graphlan}
+
+(ref:tree-graphlan) 高丰度OTU(>0.5%)物种注释分类树，按分类学目(A. order)、科(B. family)、属(C. genus)水平进行文本标签注释，结果可以看到本实验中鉴定的细菌OTU主要分布于不同分类级别的哪些目、科、属。Taxonomy tress show high abundance OTU (>0.5%), and their order, family and genus annotaion of taxonomy. [order PDF](result/tax_order.pdf)  [family PDF](result/tax_family.pdf)  [genus PDF](result/tax_genus.pdf)
+
+```{r tree-graphlan, fig.cap="(ref:tree-graphlan)"}
+figs_2 = paste0("result/tax_", c("order", "family", "genus"),".png")
+knitr::include_graphics(figs_2)
+```
+

@@ -1,0 +1,428 @@
+
+#	分类级别的差异分析 {#result-taxonomy}
+
+## 各分类级下各比较组间差异数量
+
+样品组在不同分类级别上显著差异taxonomy数量(Pvalue < 0.05, FDR < 0.05)如 Table \@ref(tab:taxonomy-sum) 所示。[TXT](result_k1-c/tax_sum.txt)
+
+```{r taxonomy-sum}
+table_taxonomy <- read.table("result_k1-c/tax_sum.txt", sep="	", header=T)
+knitr::kable(table_taxonomy, caption="样品组显著差异taxonomy数量", booktabs=TRUE)
+```
+
+
+## 门水平各组差异分析 {#result-taxonomy-phylum}
+
+(ref:taxonomy-phylum) 柱状图展示各样品组微生物组分类学门水平相对丰度。(A) 堆叠柱状图展示各组平均相对丰度，X轴为各样品组，Y轴为各门类相对百分比，只列出了丰度大于0.1%的门，其它所有门归入Low Abundance类。(B) 条形图展示最高丰度的五大菌门平均丰度及标准误，我们可以观察各样品组门水平上相关丰度的差异及组内生物学重复间的波动范围。
+Bar plot showing phylum abundances in each genotype. (A) Stack plot showing high abundance (>0.1%) phylum; (B) Bar plot showing top 5 phylum abundance and error bar in each genotype. [stack PDF](result_k1-c/tax_stack_phylum_top9.pdf)  [bar PDF](result_k1-c/tax_bar_phylum_top5.pdf)
+
+```{r taxonomy-phylum, fig.cap="(ref:taxonomy-phylum)", out.width="99%"}
+figs_2 = paste0("result_k1-c/tax_", c("stack_phylum_top9", "bar_phylum_top5"),".png")
+knitr::include_graphics(figs_2)
+```
+
+### DM1 vs WT
+
+无显著差异丰度分类单元；No significantlly differentially abundance taxonomy.
+
+
+### DM2 vs WT
+
+无显著差异丰度分类单元；No significantlly differentially abundance taxonomy.
+
+
+### DO1 vs WT
+
+无显著差异丰度分类单元；No significantlly differentially abundance taxonomy.
+
+
+### DO2 vs WT
+
+DO2与WT相比显著差异的分类单元信息如 Table \@ref(tab:taxonomy-DO2vsWT-phylum) 所示。[Enriched TXT](result_k1-c/phylum_DO2vsWT_enriched.txt)  [Depleted TXT](result_k1-c/phylum_DO2vsWT_depleted.txt)
+
+```{r taxonomy-DO2vsWT-phylum}
+table_taxonomy_e <- read.table("result_k1-c/phylum_DO2vsWT_enriched.txt", sep="	", header=T)
+table_taxonomy_d <- read.table("result_k1-c/phylum_DO2vsWT_depleted.txt", sep="	", header=T)
+table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
+table_taxonomy = table_taxonomy_merge[,1:5]
+knitr::kable(table_taxonomy, caption="样品组DO2 vs WT显著差异门详细信息；Significantlly different phylum.", booktabs=TRUE)
+```
+
+(ref:taxonomy-phylum_DO2vsWT) 热图展示DO2vsWT在门水平差异分类单元。Heatmap show differentially abundance phylum.[PDF](result_k1-c/heat_phylum_DO2vsWT_sig.pdf)
+
+```{r taxonomy-phylum-DO2vsWT, fig.cap="(ref:taxonomy-phylum_DO2vsWT)", out.width="99%"}
+knitr::include_graphics("result_k1-c/heat_phylum_DO2vsWT_sig.png")
+```
+
+
+## 纲水平各组差异分析 {#result-taxonomy-class}
+
+(ref:taxonomy-class) 柱状图展示各样品组微生物组分类学纲水平相对丰度。(A) 堆叠柱状图展示各组平均相对丰度，X轴为各样品组，Y轴为各纲类相对百分比，只列出了丰度大于0.1%的纲，其它所有纲归入Low Abundance类。(B) 条形图展示最高丰度的五大菌纲平均丰度及标准误，我们可以观察各样品组纲水平上相关丰度的差异及组内生物学重复间的波动范围。
+Bar plot showing class abundances in each genotype. (A) Stack plot showing high abundance (>0.1%) class; (B) Bar plot showing top 5 class abundance and error bar in each genotype. [stack PDF](result_k1-c/tax_stack_class_top9.pdf)  [bar PDF](result_k1-c/tax_bar_class_top5.pdf)
+
+```{r taxonomy-class, fig.cap="(ref:taxonomy-class)", out.width="99%"}
+figs_2 = paste0("result_k1-c/tax_", c("stack_class_top9", "bar_class_top5"),".png")
+knitr::include_graphics(figs_2)
+```
+
+### DM1 vs WT
+
+DM1与WT相比显著差异的分类单元信息如 Table \@ref(tab:taxonomy-DM1vsWT-class) 所示。[Enriched TXT](result_k1-c/class_DM1vsWT_enriched.txt)  [Depleted TXT](result_k1-c/class_DM1vsWT_depleted.txt)
+
+```{r taxonomy-DM1vsWT-class}
+table_taxonomy_e <- read.table("result_k1-c/class_DM1vsWT_enriched.txt", sep="	", header=T)
+table_taxonomy_d <- read.table("result_k1-c/class_DM1vsWT_depleted.txt", sep="	", header=T)
+table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
+table_taxonomy = table_taxonomy_merge[,1:5]
+knitr::kable(table_taxonomy, caption="样品组DM1 vs WT显著差异纲详细信息；Significantlly different class.", booktabs=TRUE)
+```
+
+(ref:taxonomy-class_DM1vsWT) 热图展示DM1vsWT在纲水平差异分类单元。Heatmap show differentially abundance class.[PDF](result_k1-c/heat_class_DM1vsWT_sig.pdf)
+
+```{r taxonomy-class-DM1vsWT, fig.cap="(ref:taxonomy-class_DM1vsWT)", out.width="99%"}
+knitr::include_graphics("result_k1-c/heat_class_DM1vsWT_sig.png")
+```
+
+
+### DM2 vs WT
+
+DM2与WT相比显著差异的分类单元信息如 Table \@ref(tab:taxonomy-DM2vsWT-class) 所示。[Enriched TXT](result_k1-c/class_DM2vsWT_enriched.txt)  [Depleted TXT](result_k1-c/class_DM2vsWT_depleted.txt)
+
+```{r taxonomy-DM2vsWT-class}
+table_taxonomy_e <- read.table("result_k1-c/class_DM2vsWT_enriched.txt", sep="	", header=T)
+table_taxonomy_d <- read.table("result_k1-c/class_DM2vsWT_depleted.txt", sep="	", header=T)
+table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
+table_taxonomy = table_taxonomy_merge[,1:5]
+knitr::kable(table_taxonomy, caption="样品组DM2 vs WT显著差异纲详细信息；Significantlly different class.", booktabs=TRUE)
+```
+
+(ref:taxonomy-class_DM2vsWT) 热图展示DM2vsWT在纲水平差异分类单元。Heatmap show differentially abundance class.[PDF](result_k1-c/heat_class_DM2vsWT_sig.pdf)
+
+```{r taxonomy-class-DM2vsWT, fig.cap="(ref:taxonomy-class_DM2vsWT)", out.width="99%"}
+knitr::include_graphics("result_k1-c/heat_class_DM2vsWT_sig.png")
+```
+
+
+### DO1 vs WT
+
+DO1与WT相比显著差异的分类单元信息如 Table \@ref(tab:taxonomy-DO1vsWT-class) 所示。[Enriched TXT](result_k1-c/class_DO1vsWT_enriched.txt)  [Depleted TXT](result_k1-c/class_DO1vsWT_depleted.txt)
+
+```{r taxonomy-DO1vsWT-class}
+table_taxonomy_e <- read.table("result_k1-c/class_DO1vsWT_enriched.txt", sep="	", header=T)
+table_taxonomy_d <- read.table("result_k1-c/class_DO1vsWT_depleted.txt", sep="	", header=T)
+table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
+table_taxonomy = table_taxonomy_merge[,1:5]
+knitr::kable(table_taxonomy, caption="样品组DO1 vs WT显著差异纲详细信息；Significantlly different class.", booktabs=TRUE)
+```
+
+(ref:taxonomy-class_DO1vsWT) 热图展示DO1vsWT在纲水平差异分类单元。Heatmap show differentially abundance class.[PDF](result_k1-c/heat_class_DO1vsWT_sig.pdf)
+
+```{r taxonomy-class-DO1vsWT, fig.cap="(ref:taxonomy-class_DO1vsWT)", out.width="99%"}
+knitr::include_graphics("result_k1-c/heat_class_DO1vsWT_sig.png")
+```
+
+
+### DO2 vs WT
+
+DO2与WT相比显著差异的分类单元信息如 Table \@ref(tab:taxonomy-DO2vsWT-class) 所示。[Enriched TXT](result_k1-c/class_DO2vsWT_enriched.txt)  [Depleted TXT](result_k1-c/class_DO2vsWT_depleted.txt)
+
+```{r taxonomy-DO2vsWT-class}
+table_taxonomy_e <- read.table("result_k1-c/class_DO2vsWT_enriched.txt", sep="	", header=T)
+table_taxonomy_d <- read.table("result_k1-c/class_DO2vsWT_depleted.txt", sep="	", header=T)
+table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
+table_taxonomy = table_taxonomy_merge[,1:5]
+knitr::kable(table_taxonomy, caption="样品组DO2 vs WT显著差异纲详细信息；Significantlly different class.", booktabs=TRUE)
+```
+
+(ref:taxonomy-class_DO2vsWT) 热图展示DO2vsWT在纲水平差异分类单元。Heatmap show differentially abundance class.[PDF](result_k1-c/heat_class_DO2vsWT_sig.pdf)
+
+```{r taxonomy-class-DO2vsWT, fig.cap="(ref:taxonomy-class_DO2vsWT)", out.width="99%"}
+knitr::include_graphics("result_k1-c/heat_class_DO2vsWT_sig.png")
+```
+
+
+## 目水平各组差异分析 {#result-taxonomy-order}
+
+(ref:taxonomy-order) 柱状图展示各样品组微生物组分类学目水平相对丰度。(A) 堆叠柱状图展示各组平均相对丰度，X轴为各样品组，Y轴为各目类相对百分比，只列出了丰度大于0.1%的目，其它所有目归入Low Abundance类。(B) 条形图展示最高丰度的五大菌目平均丰度及标准误，我们可以观察各样品组目水平上相关丰度的差异及组内生物学重复间的波动范围。
+Bar plot showing order abundances in each genotype. (A) Stack plot showing high abundance (>0.1%) order; (B) Bar plot showing top 5 order abundance and error bar in each genotype. [stack PDF](result_k1-c/tax_stack_order_top9.pdf)  [bar PDF](result_k1-c/tax_bar_order_top5.pdf)
+
+```{r taxonomy-order, fig.cap="(ref:taxonomy-order)", out.width="99%"}
+figs_2 = paste0("result_k1-c/tax_", c("stack_order_top9", "bar_order_top5"),".png")
+knitr::include_graphics(figs_2)
+```
+
+### DM1 vs WT
+
+DM1与WT相比显著差异的分类单元信息如 Table \@ref(tab:taxonomy-DM1vsWT-order) 所示。[Enriched TXT](result_k1-c/order_DM1vsWT_enriched.txt)  [Depleted TXT](result_k1-c/order_DM1vsWT_depleted.txt)
+
+```{r taxonomy-DM1vsWT-order}
+table_taxonomy_e <- read.table("result_k1-c/order_DM1vsWT_enriched.txt", sep="	", header=T)
+table_taxonomy_d <- read.table("result_k1-c/order_DM1vsWT_depleted.txt", sep="	", header=T)
+table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
+table_taxonomy = table_taxonomy_merge[,1:5]
+knitr::kable(table_taxonomy, caption="样品组DM1 vs WT显著差异目详细信息；Significantlly different order.", booktabs=TRUE)
+```
+
+(ref:taxonomy-order_DM1vsWT) 热图展示DM1vsWT在目水平差异分类单元。Heatmap show differentially abundance order.[PDF](result_k1-c/heat_order_DM1vsWT_sig.pdf)
+
+```{r taxonomy-order-DM1vsWT, fig.cap="(ref:taxonomy-order_DM1vsWT)", out.width="99%"}
+knitr::include_graphics("result_k1-c/heat_order_DM1vsWT_sig.png")
+```
+
+
+### DM2 vs WT
+
+DM2与WT相比显著差异的分类单元信息如 Table \@ref(tab:taxonomy-DM2vsWT-order) 所示。[Enriched TXT](result_k1-c/order_DM2vsWT_enriched.txt)  [Depleted TXT](result_k1-c/order_DM2vsWT_depleted.txt)
+
+```{r taxonomy-DM2vsWT-order}
+table_taxonomy_e <- read.table("result_k1-c/order_DM2vsWT_enriched.txt", sep="	", header=T)
+table_taxonomy_d <- read.table("result_k1-c/order_DM2vsWT_depleted.txt", sep="	", header=T)
+table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
+table_taxonomy = table_taxonomy_merge[,1:5]
+knitr::kable(table_taxonomy, caption="样品组DM2 vs WT显著差异目详细信息；Significantlly different order.", booktabs=TRUE)
+```
+
+(ref:taxonomy-order_DM2vsWT) 热图展示DM2vsWT在目水平差异分类单元。Heatmap show differentially abundance order.[PDF](result_k1-c/heat_order_DM2vsWT_sig.pdf)
+
+```{r taxonomy-order-DM2vsWT, fig.cap="(ref:taxonomy-order_DM2vsWT)", out.width="99%"}
+knitr::include_graphics("result_k1-c/heat_order_DM2vsWT_sig.png")
+```
+
+
+### DO1 vs WT
+
+DO1与WT相比显著差异的分类单元信息如 Table \@ref(tab:taxonomy-DO1vsWT-order) 所示。[Enriched TXT](result_k1-c/order_DO1vsWT_enriched.txt)  [Depleted TXT](result_k1-c/order_DO1vsWT_depleted.txt)
+
+```{r taxonomy-DO1vsWT-order}
+table_taxonomy_e <- read.table("result_k1-c/order_DO1vsWT_enriched.txt", sep="	", header=T)
+table_taxonomy_d <- read.table("result_k1-c/order_DO1vsWT_depleted.txt", sep="	", header=T)
+table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
+table_taxonomy = table_taxonomy_merge[,1:5]
+knitr::kable(table_taxonomy, caption="样品组DO1 vs WT显著差异目详细信息；Significantlly different order.", booktabs=TRUE)
+```
+
+(ref:taxonomy-order_DO1vsWT) 热图展示DO1vsWT在目水平差异分类单元。Heatmap show differentially abundance order.[PDF](result_k1-c/heat_order_DO1vsWT_sig.pdf)
+
+```{r taxonomy-order-DO1vsWT, fig.cap="(ref:taxonomy-order_DO1vsWT)", out.width="99%"}
+knitr::include_graphics("result_k1-c/heat_order_DO1vsWT_sig.png")
+```
+
+
+### DO2 vs WT
+
+DO2与WT相比显著差异的分类单元信息如 Table \@ref(tab:taxonomy-DO2vsWT-order) 所示。[Enriched TXT](result_k1-c/order_DO2vsWT_enriched.txt)  [Depleted TXT](result_k1-c/order_DO2vsWT_depleted.txt)
+
+```{r taxonomy-DO2vsWT-order}
+table_taxonomy_e <- read.table("result_k1-c/order_DO2vsWT_enriched.txt", sep="	", header=T)
+table_taxonomy_d <- read.table("result_k1-c/order_DO2vsWT_depleted.txt", sep="	", header=T)
+table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
+table_taxonomy = table_taxonomy_merge[,1:5]
+knitr::kable(table_taxonomy, caption="样品组DO2 vs WT显著差异目详细信息；Significantlly different order.", booktabs=TRUE)
+```
+
+(ref:taxonomy-order_DO2vsWT) 热图展示DO2vsWT在目水平差异分类单元。Heatmap show differentially abundance order.[PDF](result_k1-c/heat_order_DO2vsWT_sig.pdf)
+
+```{r taxonomy-order-DO2vsWT, fig.cap="(ref:taxonomy-order_DO2vsWT)", out.width="99%"}
+knitr::include_graphics("result_k1-c/heat_order_DO2vsWT_sig.png")
+```
+
+
+## 科水平各组差异分析 {#result-taxonomy-family}
+
+(ref:taxonomy-family) 柱状图展示各样品组微生物组分类学科水平相对丰度。(A) 堆叠柱状图展示各组平均相对丰度，X轴为各样品组，Y轴为各科类相对百分比，只列出了丰度大于0.1%的科，其它所有科归入Low Abundance类。(B) 条形图展示最高丰度的五大菌科平均丰度及标准误，我们可以观察各样品组科水平上相关丰度的差异及组内生物学重复间的波动范围。
+Bar plot showing family abundances in each genotype. (A) Stack plot showing high abundance (>0.1%) family; (B) Bar plot showing top 5 family abundance and error bar in each genotype. [stack PDF](result_k1-c/tax_stack_family_top9.pdf)  [bar PDF](result_k1-c/tax_bar_family_top5.pdf)
+
+```{r taxonomy-family, fig.cap="(ref:taxonomy-family)", out.width="99%"}
+figs_2 = paste0("result_k1-c/tax_", c("stack_family_top9", "bar_family_top5"),".png")
+knitr::include_graphics(figs_2)
+```
+
+### DM1 vs WT
+
+DM1与WT相比显著差异的分类单元信息如 Table \@ref(tab:taxonomy-DM1vsWT-family) 所示。[Enriched TXT](result_k1-c/family_DM1vsWT_enriched.txt)  [Depleted TXT](result_k1-c/family_DM1vsWT_depleted.txt)
+
+```{r taxonomy-DM1vsWT-family}
+table_taxonomy_e <- read.table("result_k1-c/family_DM1vsWT_enriched.txt", sep="	", header=T)
+table_taxonomy_d <- read.table("result_k1-c/family_DM1vsWT_depleted.txt", sep="	", header=T)
+table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
+table_taxonomy = table_taxonomy_merge[,1:5]
+knitr::kable(table_taxonomy, caption="样品组DM1 vs WT显著差异科详细信息；Significantlly different family.", booktabs=TRUE)
+```
+
+(ref:taxonomy-family_DM1vsWT) 热图展示DM1vsWT在科水平差异分类单元。Heatmap show differentially abundance family.[PDF](result_k1-c/heat_family_DM1vsWT_sig.pdf)
+
+```{r taxonomy-family-DM1vsWT, fig.cap="(ref:taxonomy-family_DM1vsWT)", out.width="99%"}
+knitr::include_graphics("result_k1-c/heat_family_DM1vsWT_sig.png")
+```
+
+
+### DM2 vs WT
+
+DM2与WT相比显著差异的分类单元信息如 Table \@ref(tab:taxonomy-DM2vsWT-family) 所示。[Enriched TXT](result_k1-c/family_DM2vsWT_enriched.txt)  [Depleted TXT](result_k1-c/family_DM2vsWT_depleted.txt)
+
+```{r taxonomy-DM2vsWT-family}
+table_taxonomy_e <- read.table("result_k1-c/family_DM2vsWT_enriched.txt", sep="	", header=T)
+table_taxonomy_d <- read.table("result_k1-c/family_DM2vsWT_depleted.txt", sep="	", header=T)
+table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
+table_taxonomy = table_taxonomy_merge[,1:5]
+knitr::kable(table_taxonomy, caption="样品组DM2 vs WT显著差异科详细信息；Significantlly different family.", booktabs=TRUE)
+```
+
+(ref:taxonomy-family_DM2vsWT) 热图展示DM2vsWT在科水平差异分类单元。Heatmap show differentially abundance family.[PDF](result_k1-c/heat_family_DM2vsWT_sig.pdf)
+
+```{r taxonomy-family-DM2vsWT, fig.cap="(ref:taxonomy-family_DM2vsWT)", out.width="99%"}
+knitr::include_graphics("result_k1-c/heat_family_DM2vsWT_sig.png")
+```
+
+
+### DO1 vs WT
+
+DO1与WT相比显著差异的分类单元信息如 Table \@ref(tab:taxonomy-DO1vsWT-family) 所示。[Enriched TXT](result_k1-c/family_DO1vsWT_enriched.txt)  [Depleted TXT](result_k1-c/family_DO1vsWT_depleted.txt)
+
+```{r taxonomy-DO1vsWT-family}
+table_taxonomy_e <- read.table("result_k1-c/family_DO1vsWT_enriched.txt", sep="	", header=T)
+table_taxonomy_d <- read.table("result_k1-c/family_DO1vsWT_depleted.txt", sep="	", header=T)
+table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
+table_taxonomy = table_taxonomy_merge[,1:5]
+knitr::kable(table_taxonomy, caption="样品组DO1 vs WT显著差异科详细信息；Significantlly different family.", booktabs=TRUE)
+```
+
+(ref:taxonomy-family_DO1vsWT) 热图展示DO1vsWT在科水平差异分类单元。Heatmap show differentially abundance family.[PDF](result_k1-c/heat_family_DO1vsWT_sig.pdf)
+
+```{r taxonomy-family-DO1vsWT, fig.cap="(ref:taxonomy-family_DO1vsWT)", out.width="99%"}
+knitr::include_graphics("result_k1-c/heat_family_DO1vsWT_sig.png")
+```
+
+
+### DO2 vs WT
+
+DO2与WT相比显著差异的分类单元信息如 Table \@ref(tab:taxonomy-DO2vsWT-family) 所示。[Enriched TXT](result_k1-c/family_DO2vsWT_enriched.txt)  [Depleted TXT](result_k1-c/family_DO2vsWT_depleted.txt)
+
+```{r taxonomy-DO2vsWT-family}
+table_taxonomy_e <- read.table("result_k1-c/family_DO2vsWT_enriched.txt", sep="	", header=T)
+table_taxonomy_d <- read.table("result_k1-c/family_DO2vsWT_depleted.txt", sep="	", header=T)
+table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
+table_taxonomy = table_taxonomy_merge[,1:5]
+knitr::kable(table_taxonomy, caption="样品组DO2 vs WT显著差异科详细信息；Significantlly different family.", booktabs=TRUE)
+```
+
+(ref:taxonomy-family_DO2vsWT) 热图展示DO2vsWT在科水平差异分类单元。Heatmap show differentially abundance family.[PDF](result_k1-c/heat_family_DO2vsWT_sig.pdf)
+
+```{r taxonomy-family-DO2vsWT, fig.cap="(ref:taxonomy-family_DO2vsWT)", out.width="99%"}
+knitr::include_graphics("result_k1-c/heat_family_DO2vsWT_sig.png")
+```
+
+
+## 属水平各组差异分析 {#result-taxonomy-genus}
+
+(ref:taxonomy-genus) 柱状图展示各样品组微生物组分类学属水平相对丰度。(A) 堆叠柱状图展示各组平均相对丰度，X轴为各样品组，Y轴为各属类相对百分比，只列出了丰度大于0.1%的属，其它所有属归入Low Abundance类。(B) 条形图展示最高丰度的五大菌属平均丰度及标准误，我们可以观察各样品组属水平上相关丰度的差异及组内生物学重复间的波动范围。
+Bar plot showing genus abundances in each genotype. (A) Stack plot showing high abundance (>0.1%) genus; (B) Bar plot showing top 5 genus abundance and error bar in each genotype. [stack PDF](result_k1-c/tax_stack_genus_top9.pdf)  [bar PDF](result_k1-c/tax_bar_genus_top5.pdf)
+
+```{r taxonomy-genus, fig.cap="(ref:taxonomy-genus)", out.width="99%"}
+figs_2 = paste0("result_k1-c/tax_", c("stack_genus_top9", "bar_genus_top5"),".png")
+knitr::include_graphics(figs_2)
+```
+
+### DM1 vs WT
+
+DM1与WT相比显著差异的分类单元信息如 Table \@ref(tab:taxonomy-DM1vsWT-genus) 所示。[Enriched TXT](result_k1-c/genus_DM1vsWT_enriched.txt)  [Depleted TXT](result_k1-c/genus_DM1vsWT_depleted.txt)
+
+```{r taxonomy-DM1vsWT-genus}
+table_taxonomy_e <- read.table("result_k1-c/genus_DM1vsWT_enriched.txt", sep="	", header=T)
+table_taxonomy_d <- read.table("result_k1-c/genus_DM1vsWT_depleted.txt", sep="	", header=T)
+table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
+table_taxonomy = table_taxonomy_merge[,1:5]
+knitr::kable(table_taxonomy, caption="样品组DM1 vs WT显著差异属详细信息；Significantlly different genus.", booktabs=TRUE)
+```
+
+(ref:taxonomy-genus_DM1vsWT) 热图展示DM1vsWT在属水平差异分类单元。Heatmap show differentially abundance genus.[PDF](result_k1-c/heat_genus_DM1vsWT_sig.pdf)
+
+```{r taxonomy-genus-DM1vsWT, fig.cap="(ref:taxonomy-genus_DM1vsWT)", out.width="99%"}
+knitr::include_graphics("result_k1-c/heat_genus_DM1vsWT_sig.png")
+```
+
+
+### DM2 vs WT
+
+DM2与WT相比显著差异的分类单元信息如 Table \@ref(tab:taxonomy-DM2vsWT-genus) 所示。[Enriched TXT](result_k1-c/genus_DM2vsWT_enriched.txt)  [Depleted TXT](result_k1-c/genus_DM2vsWT_depleted.txt)
+
+```{r taxonomy-DM2vsWT-genus}
+table_taxonomy_e <- read.table("result_k1-c/genus_DM2vsWT_enriched.txt", sep="	", header=T)
+table_taxonomy_d <- read.table("result_k1-c/genus_DM2vsWT_depleted.txt", sep="	", header=T)
+table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
+table_taxonomy = table_taxonomy_merge[,1:5]
+knitr::kable(table_taxonomy, caption="样品组DM2 vs WT显著差异属详细信息；Significantlly different genus.", booktabs=TRUE)
+```
+
+(ref:taxonomy-genus_DM2vsWT) 热图展示DM2vsWT在属水平差异分类单元。Heatmap show differentially abundance genus.[PDF](result_k1-c/heat_genus_DM2vsWT_sig.pdf)
+
+```{r taxonomy-genus-DM2vsWT, fig.cap="(ref:taxonomy-genus_DM2vsWT)", out.width="99%"}
+knitr::include_graphics("result_k1-c/heat_genus_DM2vsWT_sig.png")
+```
+
+
+### DO1 vs WT
+
+DO1与WT相比显著差异的分类单元信息如 Table \@ref(tab:taxonomy-DO1vsWT-genus) 所示。[Enriched TXT](result_k1-c/genus_DO1vsWT_enriched.txt)  [Depleted TXT](result_k1-c/genus_DO1vsWT_depleted.txt)
+
+```{r taxonomy-DO1vsWT-genus}
+table_taxonomy_e <- read.table("result_k1-c/genus_DO1vsWT_enriched.txt", sep="	", header=T)
+table_taxonomy_d <- read.table("result_k1-c/genus_DO1vsWT_depleted.txt", sep="	", header=T)
+table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
+table_taxonomy = table_taxonomy_merge[,1:5]
+knitr::kable(table_taxonomy, caption="样品组DO1 vs WT显著差异属详细信息；Significantlly different genus.", booktabs=TRUE)
+```
+
+(ref:taxonomy-genus_DO1vsWT) 热图展示DO1vsWT在属水平差异分类单元。Heatmap show differentially abundance genus.[PDF](result_k1-c/heat_genus_DO1vsWT_sig.pdf)
+
+```{r taxonomy-genus-DO1vsWT, fig.cap="(ref:taxonomy-genus_DO1vsWT)", out.width="99%"}
+knitr::include_graphics("result_k1-c/heat_genus_DO1vsWT_sig.png")
+```
+
+
+### DO2 vs WT
+
+DO2与WT相比显著差异的分类单元信息如 Table \@ref(tab:taxonomy-DO2vsWT-genus) 所示。[Enriched TXT](result_k1-c/genus_DO2vsWT_enriched.txt)  [Depleted TXT](result_k1-c/genus_DO2vsWT_depleted.txt)
+
+```{r taxonomy-DO2vsWT-genus}
+table_taxonomy_e <- read.table("result_k1-c/genus_DO2vsWT_enriched.txt", sep="	", header=T)
+table_taxonomy_d <- read.table("result_k1-c/genus_DO2vsWT_depleted.txt", sep="	", header=T)
+table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
+table_taxonomy = table_taxonomy_merge[,1:5]
+knitr::kable(table_taxonomy, caption="样品组DO2 vs WT显著差异属详细信息；Significantlly different genus.", booktabs=TRUE)
+```
+
+(ref:taxonomy-genus_DO2vsWT) 热图展示DO2vsWT在属水平差异分类单元。Heatmap show differentially abundance genus.[PDF](result_k1-c/heat_genus_DO2vsWT_sig.pdf)
+
+```{r taxonomy-genus-DO2vsWT, fig.cap="(ref:taxonomy-genus_DO2vsWT)", out.width="99%"}
+knitr::include_graphics("result_k1-c/heat_genus_DO2vsWT_sig.png")
+```
+
+
+## 比较组间差异科分类学样式 {#result-family-pie}
+
+(ref:family-pie) 比较组间差异科的门水平分类学样式。饼形图展示各种差异科细菌门水平分类比例。中间数字为所有显著差异科的数目，第一列为显著上调的科，第二列为显著下调的科，从上到下为各比较组。Pie charts show phylum of bacterial familys identified as either enriched or depleted in each genotype compared with WT. The number of familys in each category is noted inside each donut. 
+[DM1vsWT enriched pie PDF](result_k1-c/pie_family_DM1vsWT_enriched.pdf) 
+[DM1vsWT depleted pie PDF](result_k1-c/pie_family_DM1vsWT_depleted.pdf) 
+[DM2vsWT enriched pie PDF](result_k1-c/pie_family_DM2vsWT_enriched.pdf) 
+[DM2vsWT depleted pie PDF](result_k1-c/pie_family_DM2vsWT_depleted.pdf) 
+[DO1vsWT enriched pie PDF](result_k1-c/pie_family_DO1vsWT_enriched.pdf) 
+[DO1vsWT depleted pie PDF](result_k1-c/pie_family_DO1vsWT_depleted.pdf) 
+[DO2vsWT enriched pie PDF](result_k1-c/pie_family_DO2vsWT_enriched.pdf) 
+[DO2vsWT depleted pie PDF](result_k1-c/pie_family_DO2vsWT_depleted.pdf) 
+
+```{r family-pie, fig.cap="(ref:family-pie)", out.width="49%"}
+figs_2 = paste0("result_k1-c/pie_family_", c("DM1vsWT_enriched", "DM1vsWT_depleted", "DM2vsWT_enriched", "DM2vsWT_depleted", "DO1vsWT_enriched", "DO1vsWT_depleted", "DO2vsWT_enriched", "DO2vsWT_depleted"),".png")
+knitr::include_graphics(figs_2)
+```
+
+
+## 比较组间共有和特有科 {#result-family-venn}
+
+(ref:family-venn) 维恩图展示各基因型差异科间的共有和特有数量。图中所显各基因型组间重复间大部分科共有。 Venn diagrams show common and unique familys in each group.[DM1vsWT_enrichedDM2vsWT_enriched venn PDF](result_k1-c/family.txt.vennDM1vsWT_enrichedDM2vsWT_enrichedCDE.pdf)  [DM1vsWT_depletedDM2vsWT_depleted venn PDF](result_k1-c/family.txt.vennDM1vsWT_depletedDM2vsWT_depletedCDE.pdf)  [DO1vsWT_enrichedDO2vsWT_enriched venn PDF](result_k1-c/family.txt.vennDO1vsWT_enrichedDO2vsWT_enrichedCDE.pdf)  [DO1vsWT_depletedDO2vsWT_depleted venn PDF](result_k1-c/family.txt.vennDO1vsWT_depletedDO2vsWT_depletedCDE.pdf)  
+
+```{r family-venn, fig.cap="(ref:family-venn)", out.width="49%"}
+figs_2 = paste0("result_k1-c/family.txt.venn", c("DM1vsWT_enrichedDM2vsWT_enrichedCDE", "DM1vsWT_depletedDM2vsWT_depletedCDE", "DO1vsWT_enrichedDO2vsWT_enrichedCDE", "DO1vsWT_depletedDO2vsWT_depletedCDE"),".png")
+knitr::include_graphics(figs_2)
+```
+

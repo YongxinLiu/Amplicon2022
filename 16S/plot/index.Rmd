@@ -1,0 +1,44 @@
+--- 
+title: "细菌16S扩增子分析"
+author:
+- 客户单位：中国科学院遗传与发育生物学研究所白洋组姜婷
+- 服务单位：中国科学院遗传与发育生物学研究所白洋组刘永鑫
+- 联系方式：yxliu@genetics.ac.cn
+- 项目编号：20170428-1
+- 项目周期：2017-04-28 ~ 2017-05-31
+- 官方网站：http://bailab.genetics.ac.cn/
+date: '`r Sys.Date()`'
+documentclass: article
+bibliography: [16s.bib]
+link-citations: yes
+biblio-style: apalike
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+output <- opts_knit$get("rmarkdown.pandoc.to")
+html = FALSE
+latex = FALSE
+opts_chunk$set(echo = FALSE, out.width="100%", fig.align="center", fig.show="hold", warning=FALSE, message=FALSE)
+if (output=="html") {
+	html = TRUE
+}
+if (output=="latex") {
+	opts_chunk$set(out.width="95%", out.height='0.7\textheight', out.extra='keepaspectratio', fig.pos='H')
+	latex = TRUE
+}
+knitr::opts_chunk$set(cache=TRUE, autodep=TRUE)
+mtime <- function(files){
+  lapply(Sys.glob(files), function(x) file.info(x)$mtime)
+}
+set.seed(718)
+```
+
+```{asis, echo=html}
+# Bailab, SKLPG/CEPAMS, IGDB, CAS {-}
+```
+
+```{r cover, eval=html, out.width="99%"}
+figs_1 = paste0("figure/slide", c("1", "2"),"_raw.jpg")
+knitr::include_graphics(figs_1)
+```

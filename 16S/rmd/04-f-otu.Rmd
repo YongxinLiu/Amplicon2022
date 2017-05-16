@@ -1,0 +1,100 @@
+
+#	差异OTUs分析 {#result-otu}
+
+## 各总差异OTUs概述 {#result-otu-sum}
+
+样品组间显著差异OTUs数量(P < 0.05, FDR < 0.05)如 Table \@ref(tab:otu-sum) 所示。[TXT](result_k1-c/otu_sum.txt)；
+
+```{r otu-sum}
+table_otu <- read.table("result_k1-c/otu_sum.txt", sep="	", header=T)
+knitr::kable(table_otu, caption="各样品组间差异OTUs数量汇总", booktabs=TRUE)
+```
+
+
+样品组间显著差异显著差异OTU详细列表(P < 0.05, FDR < 0.05)如 Table @ref(tab:otu) 所示。[TXT](result_k1-c/otu.txt)
+
+```{r otu}
+table_otu <- read.table("result_k1-c/otu.txt", sep="	", header=F)
+colnames(table_otu) = c("OTU","Sample A vs B","P-value")
+knitr::kable(table_otu, caption="样品组间显著差异显著差异OTU详细列表", booktabs=TRUE)
+```
+
+
+## OTU水平组间差异分析 {#result-otu-da}
+
+
+### DM1 vs WT
+
+(ref:otu-DM1vsWT) DM1vsWT基因型存在一些丰度显著上调或下调的OTU (P & FDR < 0.05, GLM likelihood rate test)。(A) 火山图展示DM1与WT相比OTU的变化，x轴为OTU差异倍数取以2为底的对数，y轴为取丰度值百万比取2为底的对数，红蓝代表显著上下调；(B) 热图展示DM1与WT显著差异OTU在每个样品中丰度值，数据采用Z-Score方法进行标准化，红色代表丰度相对高，而绿色代表丰度相对低，黄色代表中间水平；(C) 曼哈顿图展示OTU的变化情况及在各门水平中的分布，x轴为OTU按物种门水平物种注释字母排序，y轴为Pvalue值取自然对数，虚线为采用FDR校正的P-value的显著性阈值，图中每个点代表OTU，颜色为门水平注释，大小为相对丰度，形状为变化类型，其中上实心三角为显著上调，而下空心三角为显著下调。
+DM1 are enriched and depleted for certain OTUs (P & FDR < 0.05, GLM likelihood rate test). (A) Volcano plot overview of abundance and fold change of OTUs; (B) Heatmap showing differentially abundance OTUs; (C) Manhattan plot showing phylum pattern of differentially abundance OTUs..
+[Volcano plot PDF](result_k1-c/vol_otu_DM1vsWT.pdf)  [Heatmap PDF](result_k1-c/heat_otu_DM1vsWT_sig.pdf)  [Manhattan plot PDF](result_k1-c/man_otu_DM1vsWT.pdf)
+
+```{r otu-DM1vsWT, fig.cap="(ref:otu-DM1vsWT)", out.width="99%"}
+figs_2 = paste0("result_k1-c/", c("vol_otu_DM1vsWT", "heat_otu_DM1vsWT_sig", "man_otu_DM1vsWT"),".png")
+knitr::include_graphics(figs_2)
+```
+
+
+### DM2 vs WT
+
+(ref:otu-DM2vsWT) DM2vsWT基因型存在一些丰度显著上调或下调的OTU (P & FDR < 0.05, GLM likelihood rate test)。(A) 火山图展示DM2与WT相比OTU的变化，x轴为OTU差异倍数取以2为底的对数，y轴为取丰度值百万比取2为底的对数，红蓝代表显著上下调；(B) 热图展示DM2与WT显著差异OTU在每个样品中丰度值，数据采用Z-Score方法进行标准化，红色代表丰度相对高，而绿色代表丰度相对低，黄色代表中间水平；(C) 曼哈顿图展示OTU的变化情况及在各门水平中的分布，x轴为OTU按物种门水平物种注释字母排序，y轴为Pvalue值取自然对数，虚线为采用FDR校正的P-value的显著性阈值，图中每个点代表OTU，颜色为门水平注释，大小为相对丰度，形状为变化类型，其中上实心三角为显著上调，而下空心三角为显著下调。
+DM2 are enriched and depleted for certain OTUs (P & FDR < 0.05, GLM likelihood rate test). (A) Volcano plot overview of abundance and fold change of OTUs; (B) Heatmap showing differentially abundance OTUs; (C) Manhattan plot showing phylum pattern of differentially abundance OTUs..
+[Volcano plot PDF](result_k1-c/vol_otu_DM2vsWT.pdf)  [Heatmap PDF](result_k1-c/heat_otu_DM2vsWT_sig.pdf)  [Manhattan plot PDF](result_k1-c/man_otu_DM2vsWT.pdf)
+
+```{r otu-DM2vsWT, fig.cap="(ref:otu-DM2vsWT)", out.width="99%"}
+figs_2 = paste0("result_k1-c/", c("vol_otu_DM2vsWT", "heat_otu_DM2vsWT_sig", "man_otu_DM2vsWT"),".png")
+knitr::include_graphics(figs_2)
+```
+
+
+### DO1 vs WT
+
+(ref:otu-DO1vsWT) DO1vsWT基因型存在一些丰度显著上调或下调的OTU (P & FDR < 0.05, GLM likelihood rate test)。(A) 火山图展示DO1与WT相比OTU的变化，x轴为OTU差异倍数取以2为底的对数，y轴为取丰度值百万比取2为底的对数，红蓝代表显著上下调；(B) 热图展示DO1与WT显著差异OTU在每个样品中丰度值，数据采用Z-Score方法进行标准化，红色代表丰度相对高，而绿色代表丰度相对低，黄色代表中间水平；(C) 曼哈顿图展示OTU的变化情况及在各门水平中的分布，x轴为OTU按物种门水平物种注释字母排序，y轴为Pvalue值取自然对数，虚线为采用FDR校正的P-value的显著性阈值，图中每个点代表OTU，颜色为门水平注释，大小为相对丰度，形状为变化类型，其中上实心三角为显著上调，而下空心三角为显著下调。
+DO1 are enriched and depleted for certain OTUs (P & FDR < 0.05, GLM likelihood rate test). (A) Volcano plot overview of abundance and fold change of OTUs; (B) Heatmap showing differentially abundance OTUs; (C) Manhattan plot showing phylum pattern of differentially abundance OTUs..
+[Volcano plot PDF](result_k1-c/vol_otu_DO1vsWT.pdf)  [Heatmap PDF](result_k1-c/heat_otu_DO1vsWT_sig.pdf)  [Manhattan plot PDF](result_k1-c/man_otu_DO1vsWT.pdf)
+
+```{r otu-DO1vsWT, fig.cap="(ref:otu-DO1vsWT)", out.width="99%"}
+figs_2 = paste0("result_k1-c/", c("vol_otu_DO1vsWT", "heat_otu_DO1vsWT_sig", "man_otu_DO1vsWT"),".png")
+knitr::include_graphics(figs_2)
+```
+
+
+### DO2 vs WT
+
+(ref:otu-DO2vsWT) DO2vsWT基因型存在一些丰度显著上调或下调的OTU (P & FDR < 0.05, GLM likelihood rate test)。(A) 火山图展示DO2与WT相比OTU的变化，x轴为OTU差异倍数取以2为底的对数，y轴为取丰度值百万比取2为底的对数，红蓝代表显著上下调；(B) 热图展示DO2与WT显著差异OTU在每个样品中丰度值，数据采用Z-Score方法进行标准化，红色代表丰度相对高，而绿色代表丰度相对低，黄色代表中间水平；(C) 曼哈顿图展示OTU的变化情况及在各门水平中的分布，x轴为OTU按物种门水平物种注释字母排序，y轴为Pvalue值取自然对数，虚线为采用FDR校正的P-value的显著性阈值，图中每个点代表OTU，颜色为门水平注释，大小为相对丰度，形状为变化类型，其中上实心三角为显著上调，而下空心三角为显著下调。
+DO2 are enriched and depleted for certain OTUs (P & FDR < 0.05, GLM likelihood rate test). (A) Volcano plot overview of abundance and fold change of OTUs; (B) Heatmap showing differentially abundance OTUs; (C) Manhattan plot showing phylum pattern of differentially abundance OTUs..
+[Volcano plot PDF](result_k1-c/vol_otu_DO2vsWT.pdf)  [Heatmap PDF](result_k1-c/heat_otu_DO2vsWT_sig.pdf)  [Manhattan plot PDF](result_k1-c/man_otu_DO2vsWT.pdf)
+
+```{r otu-DO2vsWT, fig.cap="(ref:otu-DO2vsWT)", out.width="99%"}
+figs_2 = paste0("result_k1-c/", c("vol_otu_DO2vsWT", "heat_otu_DO2vsWT_sig", "man_otu_DO2vsWT"),".png")
+knitr::include_graphics(figs_2)
+```
+
+
+## 比较组间差异OTU分类学样式 {#result-otu-pie}
+
+(ref:otu-pie) 比较组间差异OTU的分类学样式。饼形图展示各种差异OTU细菌门水平分类比例。中间数字为所有显著差异OTU的数目，第一列为显著上调的OTU，第二列为显著下调的OTU，从上到下为各比较组。Pie charts show phylum of bacterial OTUs identified as either enriched or depleted in each genotype compared with WT. The number of OTUs in each category is noted inside each donut. 
+[DM1vsWT enriched pie PDF](result_k1-c/pie_otu_DM1vsWT_enriched.pdf) 
+[DM1vsWT depleted pie PDF](result_k1-c/pie_otu_DM1vsWT_depleted.pdf) 
+[DM2vsWT enriched pie PDF](result_k1-c/pie_otu_DM2vsWT_enriched.pdf) 
+[DM2vsWT depleted pie PDF](result_k1-c/pie_otu_DM2vsWT_depleted.pdf) 
+[DO1vsWT enriched pie PDF](result_k1-c/pie_otu_DO1vsWT_enriched.pdf) 
+[DO1vsWT depleted pie PDF](result_k1-c/pie_otu_DO1vsWT_depleted.pdf) 
+[DO2vsWT enriched pie PDF](result_k1-c/pie_otu_DO2vsWT_enriched.pdf) 
+[DO2vsWT depleted pie PDF](result_k1-c/pie_otu_DO2vsWT_depleted.pdf) 
+
+```{r otu-pie, fig.cap="(ref:otu-pie)", out.width="49%"}
+figs_2 = paste0("result_k1-c/pie_otu_", c("DM1vsWT_enriched", "DM1vsWT_depleted", "DM2vsWT_enriched", "DM2vsWT_depleted", "DO1vsWT_enriched", "DO1vsWT_depleted", "DO2vsWT_enriched", "DO2vsWT_depleted"),".png")
+knitr::include_graphics(figs_2)
+```
+
+
+## 比较组间共有和特有OTU {#result-otu-venn}
+
+(ref:otu-venn) 维恩图展示各基因型差异OTUs间的共有和特有数量。图中所显各基因型组间重复间大部分OTUs共有。 Venn diagrams show common and unique OTUs in each group.[DM1vsWT_enrichedDM2vsWT_enriched venn PDF](result_k1-c/otu.txt.vennDM1vsWT_enrichedDM2vsWT_enrichedCDE.pdf)  [DM1vsWT_depletedDM2vsWT_depleted venn PDF](result_k1-c/otu.txt.vennDM1vsWT_depletedDM2vsWT_depletedCDE.pdf)  [DO1vsWT_enrichedDO2vsWT_enriched venn PDF](result_k1-c/otu.txt.vennDO1vsWT_enrichedDO2vsWT_enrichedCDE.pdf)  [DO1vsWT_depletedDO2vsWT_depleted venn PDF](result_k1-c/otu.txt.vennDO1vsWT_depletedDO2vsWT_depletedCDE.pdf)  
+
+```{r otu-venn, fig.cap="(ref:otu-venn)", out.width="49%"}
+figs_2 = paste0("result_k1-c/otu.txt.venn", c("DM1vsWT_enrichedDM2vsWT_enrichedCDE", "DM1vsWT_depletedDM2vsWT_depletedCDE", "DO1vsWT_enrichedDO2vsWT_enrichedCDE", "DO1vsWT_depletedDO2vsWT_depletedCDE"),".png")
+knitr::include_graphics(figs_2)
+```
+
