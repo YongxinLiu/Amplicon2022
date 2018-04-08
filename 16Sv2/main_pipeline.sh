@@ -1,3 +1,410 @@
+SHELL:=/bin/bash
+
+# 16S扩增子分析流程第二版 16S Amplicon pipeline version 2
+
+
+
+# 0 帮助文档：流程所需的软件、脚本及数据库版本 Help: Pipeline dependency version of softwares, scripts and databases
+version: 
+	# 2018/4/2 1.0 Standard 16S anlysis report
+	# 
+	# Softwares
+	# fastqc -v # 0.11.5 测序数据质量评估
+	# parallel # 并行/多线程任务管理
+	# fastp -v # version 0.12.5 fastq文件质控、质量类型转换
+	# usearch10 --help # v10.0.240_i86linux64 扩增子分析软件
+	# clustalo --version # 1.2.1 多序列对齐
+	# filter_alignment.py # from qiime1.9.1 筛选比对序列及区域
+	# make_phylogeny.py # from qiime1.9.1 默认调用fastree建树
+	# biom --version # 2.1.5， OTU表格式转换
+	# 
+	# Scripts
+	# alpha_boxplot.sh # 1.0 基于usearch alpha_div绘制箱线图
+	#
+	# Databases
+	# greengene13_5 # reference, and/or taxonomy database 
+	# rdp train set 16 # taxonomy database
+	# silva132 # chimera reference, and/or taxonomy database 
+
+# 0.1 建立程序必须目录 Create work directory
+init:
+	touch $@
+	mkdir -p seq
+	mkdir -p doc
+	mkdir -p temp
+	mkdir -p result
+
+
+
+
+# 1 原始序列预处理 Raw data pre-treatment
+
+# 1.1 拆分下机数据为文库 Split lane into library
+# 需要将lane文件放入seq目录，对应的index和文库放在doc/library.txt
+# 注意：makefile中注释行的#顶格则不输出，如果缩进则输出
+lane_split:
+	touch $@
+# 质量原始数据 Quality control of lane files
+	fastqc -t ${p} seq/${lane}_* &
+# 方法1. For循环调用grep检索 method 1. for loop grep each index 循环内部有两次缩进会报错
+#	for index in `tail -n+2 doc/library.txt | cut -f 2`; do
+#	echo ${index}
+#	zcat seq/lane_1.fq.gz | grep -A 3 "#${index}"| grep -v -P '^--$' > seq/${index}_1.fq &
+#	zcat seq/lane_2.fq.gz | grep -A 3 "#${index}"| grep -v -P '^--$' > seq/${index}_2.fq &
+#	done
+# 方法2. 并行处理任务列表 method 2. parallel grep each index
+	parallel -j ${p} "zcat seq/lane_1.fq.gz | grep -A 3 '#{1}'| grep -v -P '^--$$' > seq/{1}_1.fq" ::: `tail -n+2 doc/library.txt | cut -f 2`
+	parallel -j ${p} "zcat seq/lane_2.fq.gz | grep -A 3 '#{1}'| grep -v -P '^--$$' > seq/{1}_2.fq" ::: `tail -n+2 doc/library.txt | cut -f 2`
+# 修改索引为文库编号 rename index to library ID
+	awk 'BEGIN{OFS=FS="\t"}{system("mv seq/"$$2"_1.fq seq/"$$1"_1.fq");system("mv seq/"$$2"_2.fq seq/"$$1"_2.fq")}' <(tail -n+2 doc/library.txt)
+
+# 1.2 拆分文库为样品 Split library into sample
+# makefile中使用for循环，调用的列表要在同一行用空格分隔，换行分隔会报错；代码也要在同一行用分号断句，不可用回车，但可用\换行
+# 默认只拆分单左端barcode类型的样品:先匹配左端，再提取序列ID，再提取右端，最后改名，注意实验设计要严格规范无空格
+library_split:
+	touch $@
+	mkdir -p seq/sample
+	for library in `tail -n+2 doc/library.txt | cut -f 1 | tr '\n' ' '`; do \
+	echo $${library}; \
+	parallel "grep -A 2 -B 1 -P "^{1}" seq/$${library}_1.fq|grep -v -P '^--$$' \
+		> seq/sample/{1}_1.fq" ::: `tail -n+2 doc/$${library}.txt | cut -f 2`; \
+	parallel "awk 'NR%4==1' seq/sample/{1}_1.fq |sed 's/^@//;s/1$$/2/' \
+		> temp/{1}.id" ::: `tail -n+2 doc/$${library}.txt | cut -f 2`; \
+	parallel "usearch10 -fastx_getseqs seq/$${library}_2.fq -labels temp/{1}.id \
+		-fastqout seq/sample/{1}_2.fq" ::: `tail -n+2 doc/$${library}.txt | cut -f 2`; \
+	awk 'BEGIN{OFS=FS="\t"}{system("mv seq/sample/"$$2"_1.fq seq/sample/"$$1"_1.fq"); \
+		system("mv seq/sample/"$$2"_2.fq seq/sample/"$$1"_2.fq")}' <(tail -n+2 doc/$${library}.txt); \
+	done
+
+# 1.3 双端序列合并 Merge pair-end reads
+# 如果是pair-end reads是phred64，需要先使用fastp转换为33且关闭质控(质控影响序列长度)，再使用usearch10 mergepair
+sample_merge:
+	touch $@
+	mkdir -p temp/qc
+# 关闭质量控制，主要目的是格式转换64至33，不然usearch无法合并
+	parallel -j ${p} "fastp -i seq/sample/{1}_1.fq -I seq/sample/{1}_2.fq \
+		-o temp/qc/{1}_1.fq -O temp/qc/{1}_2.fq -6 -A -G -Q -L" \
+		::: `tail -n+2 doc/design.txt | cut -f 1`
+# 双端序列合并
+	mkdir -p temp/merge
+	parallel -j ${p} "usearch10 -fastq_mergepairs temp/qc/{1}_1.fq -reverse temp/qc/{1}_2.fq \
+		-fastqout temp/merge/{1}.fq -relabel {1}." ::: `tail -n+2 doc/design.txt | cut -f 1`
+# 合并所有双端合并的样品
+	cat temp/merge/* > temp/all.fq
+
+# 1.4 切除引物 Cut primers and quality filter
+# Cut barcode 10bp + V5 19bp in left and V7 18bp in right
+fq_trim: sample_merge
+	touch $@
+	usearch10 -fastx_truncate temp/all.fq \
+		-stripleft ${stripleft} -stripright ${stripright} \
+		-fastqout temp/stripped.fq 
+
+# 1.5 质量控制fastq filter
+# 默认过滤错误率超1%的序列 Keep reads error rates less than 1%
+fq_qc: fq_trim
+	touch $@
+	usearch10 -fastq_filter temp/stripped.fq \
+		-fastq_maxee_rate ${fastq_maxee_rate} \
+		-fastaout temp/filtered.fa -threads ${p}
+
+# 1.6 序列去冗余 Remove redundancy
+# miniuniqusize为8，去除低丰度，增加计算速度
+fa_unqiue: fq_qc
+	touch $@
+	usearch10 -fastx_uniques temp/filtered.fa \
+		-minuniquesize ${minuniquesize} -sizeout \
+		-fastaout temp/uniques.fa -threads ${p}
+	echo -ne 'Unique reads\t' > ${otu_log}
+	grep -c '>' temp/uniques.fa >> ${otu_log}
+	cat ${otu_log}
+
+# 1.7 挑选OTU Pick OTUs
+# 可选97% cluster_otus，或100% unoise3，默认unoise3，不支持多线程
+# ifeq条件必须顶格，否则报错
+otu_pick: fa_unqiue
+	touch $@
+	echo -e "OTU method\t${otu_method}" >> ${otu_log}
+ifeq (${otu_method}, unoise3)
+# 类似100%聚类，只去除嵌合体和扩增及测序错误，保留所有高丰度序列
+	usearch10 -unoise3 temp/uniques.fa -zotus temp/Zotus.fa -minsize ${minuniquesize} -threads ${p}
+else
+# cluster_otus无法修改聚类参数，想使用不同聚类相似度，使用cluster_smallmem命令
+	usearch10 -cluster_otus temp/uniques.fa -otus temp/Zotus.fa -threads ${p}
+endif
+	awk 'BEGIN {n=1}; />/ {print ">OTU_" n; n++} !/>/ {print}' temp/Zotus.fa > temp/otus.fa
+	echo -ne 'OTU number\t' >> ${otu_log}
+	grep -c '>' temp/otus.fa >> ${otu_log}
+	cat ${otu_log}
+
+# 1.8 基于参考序列去嵌合 Remove chemira by silva
+# 可选，推荐使用最新SILVA大数据库 https://www.arb-silva.de/
+# 官方模式推荐sensitive错，推荐balanced, high_confidence
+chimera_ref: otu_pick
+	touch $@
+	usearch10 -uchime2_ref temp/otus.fa \
+		-db ${chimera_ref} -strand plus -mode ${chimera_mode} \
+		-chimeras temp/otus_chimeras.fa -threads ${p}
+# 获得非嵌合体序列ID
+	cat temp/otus.fa temp/otus_chimeras.fa| grep '>' | sort | uniq -u | sed 's/>//' > temp/no_chimeras.id
+# 筛选非嵌合体
+	usearch10 -fastx_getseqs temp/otus.fa -labels temp/no_chimeras.id -fastaout temp/otus_no_chimeras.fa
+	echo -ne 'no chimeras\t' >> ${otu_log}
+	grep -c '>' temp/otus_no_chimeras.fa >> ${otu_log}
+	cat ${otu_log}
+
+# 1.9 去除宿主 remove host
+host_rm: chimera_ref
+	touch $@
+ifeq (${host_method}, blast)
+# 方法1. 基于宿主基因组(含叶绿体/线粒体)比对
+	blastn -query temp/otus_no_chimeras.fa -db ${host} -out temp/otus_no_chimeras.blastn \
+	-outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs' \
+	-num_alignments 1 -evalue 1 -num_threads ${p}
+	awk '$$3>${host_similarity} && $$13>${host_coverage}' temp/otus_no_chimeras.blastn | cut -f 1 | sort | uniq > temp/otus_host.id
+	cat <(grep '>' temp/otus_no_chimeras.fa|sed 's/>//') temp/otus_host.id | sort | uniq -u > temp/otus_no_host.id
+else ifeq (${host_method}, sintax_gg)
+# 方法2. 基于GG13_5的usearch注释结果筛选，排除线粒体、叶绿体和非16S
+	usearch10 -sintax temp/otus_no_chimeras.fa \
+		-db ${usearch_gg} -sintax_cutoff ${sintax_cutoff} -strand both \
+		-tabbedout temp/otus_no_chimeras.tax -threads ${p}
+	grep -P -v 'mitochondria|Chloroplast|\t$$' temp/otus_no_chimeras.tax | cut -f 1 > temp/otus_no_host.id
+else ifeq (${host_method}, sintax_silva)
+# 方法3. 基于silva132的usearch注释结果筛选，排除线粒体、叶绿体、真核和非16S
+	usearch10 -sintax temp/otus_no_chimeras.fa \
+		-db ${usearch_silva} -sintax_cutoff ${sintax_cutoff} -strand both \
+		-tabbedout temp/otus_no_chimeras.tax -threads ${p}
+	grep -P -v 'Mitochondria|Chloroplast|Eukaryota|\t$$' temp/otus_no_chimeras.tax | cut -f 1 > temp/otus_no_host.id
+else
+# 其它：没有提供正确的方法名称，报错提示
+	$(error "Please select the right method: one of in blast, usearch_gg or usearch_silva") 
+endif
+# 最终筛选结果复制入result
+	usearch10 -fastx_getseqs temp/otus_no_chimeras.fa -labels temp/otus_no_host.id -fastaout temp/otus_no_host.fa
+	echo -ne 'no host\t' >> ${otu_log}
+	grep -c '>' temp/otus_no_host.fa >> ${otu_log}
+	cat ${otu_log}
+	cp temp/otus_no_host.fa result/otu.fa
+
+# 1.10 生成OTU表 Creat OTUs table
+otutab_create: host_rm
+	touch $@
+ifeq (${map_method}, usearch10)
+# 方法1：usearch10
+	usearch10 -otutab temp/stripped.fq -otus result/otu.fa -id ${map_identify} \
+		-otutabout temp/otutab.txt -threads ${p}
+else
+# 方法2：vsearch，比usearch10更快
+	time vsearch --usearch_global temp/filtered.fa --db result/otu.fa --id ${map_identify} \
+		--otutabout temp/otutab.txt --threads ${p}
+endif
+
+# 1.11 OTU表筛选 Filter OTU table
+otutab_filter: otutab_create
+	touch $@
+# 统计OTU表的基本信息
+	usearch10 -otutab_stats temp/otutab.txt -output temp/otutab.txt.stat
+	echo -ne "\nOTU table summary\nType\tThreshold\tReads\tSamples\tOTUs\nTotal\t-\t" > ${log_otutable}
+	head -n3 temp/otutab.txt.stat|awk '{print $$1}'|tr '\n' '\t'|sed 's/\t$$/\n/' >> ${log_otutable}
+# 按样本测序量筛选：通常低于5000的样本会删除
+	usearch10 -otutab_trim temp/otutab.txt -min_sample_size ${min_sample_size} -output temp/otutab_trim1.txt
+	usearch10 -otutab_stats temp/otutab_trim1.txt -output temp/otutab_trim1.txt.stat
+	echo -ne "SampleSize\t${min_sample_size}\t" >> ${log_otutable}
+	head -n3 temp/otutab_trim1.txt.stat|awk '{print $$1}'|tr '\n' '\t'|sed 's/\t$$/\n/' >> ${log_otutable}
+# 按OTU测序量筛选：通常低于8的OTU会删除
+	usearch10 -otutab_trim temp/otutab_trim1.txt -min_otu_size ${min_otu_size} -output temp/otutab_trim2.txt
+	usearch10 -otutab_stats temp/otutab_trim2.txt -output temp/otutab_trim2.txt.stat
+	echo -ne "OtuSize\t${min_otu_size}\t" >> ${log_otutable}
+	head -n3 temp/otutab_trim2.txt.stat|awk '{print $$1}'|tr '\n' '\t'|sed 's/\t$$/\n/' >> ${log_otutable}
+# 按OTU相对丰度筛选：通常低于1 RPM 的OTU会删除
+	usearch10 -otutab_trim temp/otutab_trim2.txt -min_otu_freq ${min_otu_freq} -output temp/otutab_trim3.txt
+	usearch10 -otutab_stats temp/otutab_trim3.txt -output temp/otutab_trim3.txt.stat
+	echo -ne "OtuFreq\t${min_otu_freq}\t" >> ${log_otutable}
+	head -n3 temp/otutab_trim3.txt.stat|awk '{print $$1}'|tr '\n' '\t'|sed 's/\t$$/\n/' >> ${log_otutable}
+## 复制最终OTU表到结果目录
+	cp temp/otutab_trim3.txt result/otutab.txt
+## 依据最小样本量，设置OTU表标准化的阈值，如我们看到最小样品数据量为3.1万，可以抽样至3万
+	usearch10 -otutab_norm result/otutab.txt -sample_size ${sample_size} -output result/otutab_norm.txt 
+	usearch10 -otutab_stats result/otutab_norm.txt -output result/otutab_norm.txt.stat
+	echo -ne "OtuNorm\t${sample_size}\t" >> ${log_otutable}
+	head -n3 result/otutab_norm.txt.stat|awk '{print $$1}'|tr '\n' '\t'|sed 's/\t$$/\n/' >> ${log_otutable}
+	cat ${log_otutable}
+
+# 1.12 物种注释 Assign taxonomy
+tax_assign: otutab_filter
+	touch $@
+	usearch10 -sintax result/otu.fa \
+		-db ${sintax_db} -sintax_cutoff ${sintax_cutoff} -strand both \
+		-tabbedout temp/otu.fa.tax -threads ${p}
+
+# 1.13 物种注释统计 Taxonomy summary
+tax_sum: tax_assign
+	touch $@
+	mkdir -p result/tax
+# 修改输出文件中没注释第4列为空的问题，在1.9移除宿主中己经解决，但必须均为sliva数据库
+# 对于其它数据库，此部将未分类的添加末注释标记
+	sed -i 's/\t$$/\td:Unassigned/' temp/otu.fa.tax
+# 按门、纲、目、科、属水平分类汇总
+	for i in p c o f g;do \
+		usearch10 -sintax_summary temp/otu.fa.tax -otutabin result/otutab_norm.txt -rank $${i} \
+			-output result/tax/sum_$${i}.txt; \
+	done
+# 删除Taxonomy中异常字符如()
+	sed -i 's/(//g;s/)//g;s/\"//g;s/\/Chloroplast//g' result/tax/sum_*.txt
+# 格式化物种注释：去除sintax中置信值，只保留物种注释，替换:为_，删除引号
+	cut -f 1,4 temp/otu.fa.tax | sed 's/\td/\tk/;s/:/__/g;s/,/;/g;s/"//g;s/\/Chloroplast//' > result/taxonomy_2.txt
+# 注意注释是非整齐的，由于新物种只是相近而不完全相当
+# 生成物种表格：注意OTU中会有末知为空白，补齐分类未知新物种为Unassigned
+	awk 'BEGIN{OFS=FS="\t"} {delete a; a["k"]="Unassigned";a["p"]="Unassigned";a["c"]="Unassigned";a["o"]="Unassigned";a["f"]="Unassigned";a["g"]="Unassigned";a["s"]="Unassigned"; split($$2,x,";");for(i in x){split(x[i],b,"__");a[b[1]]=b[2];} print $$1,a["k"],a["p"],a["c"],a["o"],a["f"],a["g"],a["s"];}' result/taxonomy_2.txt | sed '1 i #OTUID\tKindom\tPhylum\tClass\tOrder\tFamily\tGenus\tSpecies' > result/taxonomy_8.txt
+
+# 1.14 多序列比对和进化树 Multiply alignment and make_phylogeny
+tree_make: tax_sum
+	touch $@
+# clustalo+qiime1.9.1
+	clustalo -i result/otu.fa -o temp/otu_align.fa --seqtype=DNA --full --force --threads=${p}
+# rep_seqs_align_pfiltered.fa, only very short conserved region saved
+	filter_alignment.py -i temp/otu_align.fa  -o temp/
+	make_phylogeny.py -i temp/otu_align_pfiltered.fasta -o result/otu.tree
+
+# 1.15 alpha_calc Alpha多样性指数计算 Calculate alpha diversity index
+# Calculate all alpha diversity, details in http://www.drive5.com/usearch/manual/alpha_metrics.html
+alpha_calc: tree_make
+	touch $@
+	mkdir -p result/alpha
+# 计算14种alpha多样性指数
+	usearch10 -alpha_div result/otutab_norm.txt -output result/alpha/index.txt 
+# 稀释曲线：取1%-100%的序列中OTUs数量 Rarefaction from 1%, 2% .. 100% in richness (observed OTUs)
+# method fast / with_replacement / without_replacement ref: https://drive5.com/usearch/manual/cmd_otutab_subsample.html
+	usearch10 -alpha_div_rare result/otutab_norm.txt -output result/alpha/rare.txt -method ${rare_method}
+
+# 1.16 beta_calc Beta多样性进化树和距离矩阵计算 Beta diversity tree and distance matrix
+beta_calc: alpha_calc
+	touch $@
+# 计算距离矩阵，有多种方法结果有多个文件，需要目录
+	mkdir -p result/beta/
+# 基于OTU构建进化树 Make OTU tree
+# 方法1: usearch10 culster_agg建树+beta_div计算矩阵
+#	usearch10 -cluster_agg result/otu.fa -treeout result/otu.tree
+# ---Fatal error--- ../calcdistmxu.cpp(32) assert failed: QueryUniqueWordCount > 0 致信作者
+# 生成5种距离矩阵：bray_curtis, euclidean, jaccard, manhatten, unifrac
+#	usearch10 -beta_div result/otutab.txt -tree result/otu.tree -filename_prefix result/beta/
+# ---Fatal error--- 1(91), expected ')', got '0.993' 它只依赖于cluster_agg的结果，fasttree结果不可用
+# 方法2: clustalo+qiime1.9.1
+# 转换txt为biom才可以用qiime分析
+	biom convert -i result/otutab_norm.txt -o result/otutab_norm.biom --table-type="OTU table" --to-json
+# 计算4种距离矩阵 http://qiime.org/scripts/beta_diversity.html -s显示矩阵列表有34种距离可选
+	beta_diversity.py -i result/otutab_norm.biom -o result/beta/ -t result/otu.tree -m ${dis_method}
+# 删除文件名中多余字符，以方法.txt为文件名
+	rename 's/_otutab_norm//' result/beta/*.txt
+#	sed -i 's/^\t//g' ${result}/beta/*
+# 方法3：mafft+fasttree
+
+# 1.17 otutab_ref 有参比对，如Greengenes，可用于picurst, bugbase分析
+otutab_gg: beta_calc
+	touch $@
+# 根据方法选择usearch10/vsearch比对至gg13_5数据
+ifeq (${map_method}, usearch10)
+	usearch10 -otutab temp/stripped.fq -otus ${otutab_gg} -id ${map_identify} \
+		-otutabout result/otutab_gg.txt -threads ${p}
+else ifeq (${map_method}, vsearch)
+	time vsearch --usearch_global temp/filtered.fa --db ${otutab_gg} --id ${map_identify} \
+		--otutabout result/otutab_gg.txt --threads ${p}
+else
+# 其它：没有提供正确的方法名称，报错提示
+	$(error "Please select the right method: one of in usearch10 or vsearch") 
+endif
+# 统计OTU表
+	usearch10 -otutab_stats result/otutab_gg.txt -output result/otutab_gg.stat
+	cat result/otutab_gg.stat 
+
+
+
+# 2. 统计绘图
+
+# 绘图所需Shell脚本位于script目录中script目录下，会按参数生成R脚本于工作目录中的script下
+
+# 2.1 alpha_boxplot Alpha多样性指数箱线图 Alpha index in boxplot
+# 分别对应index文件和对应的指数列；design文件对应的组和选择组；输出文件及长宽
+alpha_boxplot: alpha_calc
+	touch $@
+	alpha_boxplot.sh -i ${ab_input} -m ${ab_method} \
+		-d ${ab_design} -A ${ab_group_name} -B ${ab_group_list} \
+		-o ${ab_output} -h ${ab_height} -w ${ab_width}
+
+# 2.2 alpha_rare Alpha丰富度稀释曲线 Alpha rarefracation curve
+alpha_rare: alpha_boxplot
+	touch $@
+	alpha_rare.sh -i ${ar_input} \
+		-d ${ar_design} -A ${ar_group_name} -B ${ar_group_list} \
+		-o ${ar_output} -h ${ar_height} -w ${ar_width}
+
+# 2.3 beta_pcoa 主坐标轴分析距离矩阵 PCoA of distance matrix
+beta_pcoa: alpha_rare
+	touch $@
+	beta_pcoa.sh -i ${bp_input} -m ${bp_method} \
+		-d ${bp_design} -A ${bp_group_name} -B ${bp_group_list} -E ${bp_ellipse} \
+		-c ${bp_compare} \
+		-o ${bp_output} -h ${bp_height} -w ${bp_width}
+
+# 2.4 beta_cpcoa 限制性主坐标轴分析: OTU表基于bray距离和CCA  CCA of bray distance matrix
+beta_cpcoa: beta_pcoa
+	touch $@
+	beta_cpcoa.sh -i ${bc_input} -m ${bc_method} \
+		-d ${bc_design} -A ${bc_group_name} -B ${bc_group_list} -E ${bc_ellipse} \
+		-o ${bc_output} -h ${bc_height} -w ${bc_width}
+
+# 2.5 tax_stackplot 样品和组分类学各级别的堆叠柱状图 Stackplot showing taxonomy in each level
+tax_stackplot: beta_cpcoa
+	touch $@
+	tax_stackplot.sh -i ${ts_input} -m ${ts_level} -n ${ts_number} \
+		-d ${ts_design} -A ${ts_group_name} -B ${ts_group_list} -O ${ts_order} \
+		-o ${ts_output} -h ${ts_height} -w ${ts_width}
+
+# 2.6 DA_compare 组间差异比较 edgeR or wilcox
+## 需要otu表、实验设计和物种注释
+DA_compare: tax_stackplot
+#	touch $@
+	compare.sh -i ${ts_input} -m ${ts_level} -n ${ts_number} \
+		-d ${ts_design} -A ${ts_group_name} -B ${ts_group_list} -O ${ts_order} \
+		-o ${ts_output} -h ${ts_height} -w ${ts_width}
+
+
+
+
+
+# 2.7 差异OTU绘制火山图
+
+# 2.8 差异OTU绘制热图
+
+# 2.9 差异OTU绘制曼哈顿图
+
+# 2.10 维恩图
+
+# 2.11 Upsetview图
+
+## 结果目录
+#mkdir -p compare
+#
+## 显示帮助
+#Rscript ./script/compare_edgeR.r -h # 显示帮助
+#
+## 默认参数：计算group分类下A-B比较
+#Rscript ./script/compare_edgeR.r
+#
+## 计算A-C
+#Rscript ./script/compare_edgeR.r -c A-C
+#
+## 按genotype分组下KO-WT
+#Rscript ./script/compare_edgeR.r -n genotype -c KO-WT
+#
+### 7. 绘制火山图、热图和曼哈顿图，同上
+#
+## 数据矩阵在edgeR_KO-WT_sig.txt文件中
+## 样品注释在design.txt中，用于列分组注释
+## OTU物种注释来自taxtab.txt文件(可选)
+
+
+
 ## 16S扩增子主流程，修改请保证向前兼容，最好只添加新分枝流程
 ## Amplicon 16S main pipeline. Modify need meet the previous running good, you would better only add new command
 #
@@ -52,14 +459,6 @@
 #	# # Database
 #	# All database list on the makefile.config
 #
-## 0.1 建立程序必须目录 Create work directory
-#init:
-#	touch $@
-#	mkdir -p ${seq} 
-#	mkdir -p ${doc}
-#	mkdir -p ${temp}
-#	mkdir -p ${result}
-#	mkdir -p ${result_f}
 #
 ## 0.2 按doc/library.txt改文库名，方便批量检索 Batch rename seq/*fq file according to doc/design, make samples ID more meaningful
 #rename: init
