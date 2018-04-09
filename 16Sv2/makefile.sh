@@ -138,16 +138,16 @@ text_size=7
 
 # 图中显示legend, 如taxonomy的数量，5，8(default)，10
 legend_number=10
-# 差异统计按丰度过滤 abundance filter，如丰度按万分之五过滤，减少计算量，提高OTU的FDR值
-abundance_thre=0.0005
+# 差异统计按丰度过滤 abundance filter，如丰度按万分之一过滤，减少计算量，提高OTU的FDR值，可选十万/百万之一
+abundance_thre=0.0001
 # 差异比较方法，默认是edgeR的 lrt ，可选 wilcoxon 秩和检验
 compare_method="lrt"
 # 显著性P值过滤 threshold of P-value，可选0.05, 0.01, 0.001。采用FDR校正，此参数意义不大，即使0.001也没有FDR < 0.2过滤严格
 pvalue=0.01
 # 统计检验方式fdr
-fdr=0.05
-# 差异倍数logFC常用1.5, 2, 4倍，对应0.585, 1, 2；菌丰度变化倍数不明显，还可用1.3和1.7倍对应0.379和0.766
-logFC=0.379
+FDR=0.05
+# 差异变化倍数常用1.5, 2, 4倍，对应logFC为0.585, 1, 2；菌丰度变化倍数不明显，还可用1.3和1.7倍对应0.379和0.766
+FC=1.3
 
 # 统计绘图和网页报告版本控制
 sub="v1"
@@ -224,13 +224,16 @@ ts_order=FALSE
 # 2.6 DA_compare 组间差异比较
 Dc_input=${wd}/result/otutab.txt
 # 差异比较方法edgeR or wilcox，默认edgeR
-Dc_method='edgeR'
+Dc_compare=${compare}
+Dc_method=${compare_method}
+Dc_pvalue=${pvalue}
+Dc_FDR=${FDR}
+Dc_FC=${FC}
+Dc_thre=${abundance_thre}
 Dc_design=${design}
 Dc_group_name=${g1}
 Dc_group_list=${g1_list}
 Dc_output=${wd}/result/compare/
-# 设置差异OTUs顺序，默认按P值排序，TRUE为按丰度排序
-Dc_order=FALSE
 
 
 

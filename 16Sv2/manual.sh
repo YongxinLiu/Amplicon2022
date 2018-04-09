@@ -138,8 +138,8 @@ make otutab_filter
 make tax_assign
 # RDP train set 16, 21M, 24s, 1.9Gb # 发现OTU_1原来gg注释为线粒体，而rdp中注释不出来，在线rdp也注释不出来。所有之前用gg注释一次并移除宿主
 # 三种数据比较
-# rdp trainset 16 21Mb: 00:03 106Mb  14470 names, tax levels min 3, avg 6.7, max 7; WARNING: 2 taxonomy nodes have >1 parent; 00:06 1.9Gb
 # gg_13_5 97% 151Mb: 2995 names, tax levels min 1, avg 5.0, max 7; WARNING: 1 taxonomy nodes have >1 parent; 00:46 2.5Gb
+# rdp trainset 16 21Mb: 00:03 106Mb  14470 names, tax levels min 3, avg 6.7, max 7; WARNING: 2 taxonomy nodes have >1 parent; 00:06 1.9Gb
 # silva132 99% 1.1G: 114457 names, tax levels min 2, avg 6.8, max 7; WARNING: 2324 taxonomy nodes have >1 parent; 06:26 6.7Gb; index 04:44 9.0Gb
 
 # 1.13 物种统计 Taxonomy summary
@@ -182,3 +182,6 @@ make beta_cpcoa
 
 # 2.5 tax_stackplot 样品和组分类学各级别的堆叠柱状图 Stackplot showing taxonomy in each level
 make tax_stackplot
+
+# 2.6 DA_compare 组间差异比较 edgeR or wilcox
+make DA_compare

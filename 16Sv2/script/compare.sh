@@ -10,9 +10,14 @@ method="edgeR"
 design=doc/design.txt
 g1=groupID
 g1_list=''
+compare=doc/compare.txt
 output=result/compare/
 execute=TRUE
 order=FALSE
+pvaule=0.01
+FDR=0.05
+fold_change=1.3
+abundance_threshold=0.0005
 
 # 脚本功能描述 Function for script description and usage
 usage()
@@ -53,30 +58,35 @@ OTU_1   6898    4153    5775    1562    4774    4346    6469    4328
 OTU_10  1085    524     948     349     1000    741     1214    739 
 
 # Output file
-1. otu_with pvalue & FDR
+1. OTUs with pvalue & FDR & fold change
+2. Signifcantly abundance OTU.
 
 OPTIONS:
+	-c compare list file, default doc/compare.txt
 	-d design for each samples, default doc/design.txt
 	-e execuate Rscript, default TRUE
 	-i OTU table in reads counts, default result/otutab.txt
 	-m statistics method, default edgeR, alternative wilcon
 	-o output director, default result/tax/
+	-p pvaule, default 0.01
+	-q FDR/qvalue, default 0.05
 	-s text size, default 7
 	-w figure width, default 8
 	-A group name
 	-B group selected list, empty will not select
+	-F fold change, default 1.3
 	-O order of legend, default FALSE alphabet, set TRUE abundance
 	-? show help of script
 
 Example:
-tax_stackplot.sh -i ${input} -m '${method}' -d ${design} -A ${g1} -B '${g1_list}' -o ${output} -O ${order} -w ${width} -h ${height}
+compare.sh -i ${input} -m '${method}' -d ${design} -A ${g1} -B '${g1_list}' -o ${output} -O ${order} -w ${width} -h ${height}
 
 EOF
 }
 
 
 # 参数解析 Analysis parameter
-while getopts "c:d:e:h:i:m:n:o:s:w:A:B:O:" OPTION
+while getopts "c:d:e:h:i:m:n:o:p:q:s:t:w:A:B:F:O:" OPTION
 do
 	case $OPTION in
 		c)
@@ -103,8 +113,17 @@ do
 		o)
 			output=$OPTARG
 			;;
+		p)
+			pvalue=$OPTARG
+			;;
+		q)
+			FDR=$OPTARG
+			;;
 		s)
 			text_size=$OPTARG
+			;;
+		t)
+			abundance_threshold=$OPTARG
 			;;
 		w)
 			width=$OPTARG
@@ -115,6 +134,9 @@ do
 		B)
 			g1_list=$OPTARG
 			select1=TRUE
+			;;
+		F)
+			foldchange=$OPTARG
 			;;
 		O)
 			order=$OPTARG
@@ -135,7 +157,7 @@ fi
 mkdir -p script
 
 # 开始写R统计绘图脚本
-cat <<END >script/tax_stackplot.R
+cat <<END >script/compare.R
 #!/usr/bin/env Rscript
 # 
 # Copyright 2016-2018 Yong-Xin Liu <metagenome@126.com>
@@ -151,11 +173,12 @@ cat <<END >script/tax_stackplot.R
 
 # 1.1 程序功能描述和主要步骤
 
-# 程序功能：限制性主坐标轴分析及组间统计
-# Functions: Stackplot of each taxonomy level
+# 程序功能：高通量测序reads counts值的组间比较并筛选
+# Functions: Calculate pvalue and FDR for each OTUs by edgeR or wilcon
 # Main steps: 
-# - Reads taxonomy summary input.txt and design
-# - Draw taxonomy stackplot by ggplot2
+# - Reads data matrix and design
+# - Calculate pvalue and FDR
+# - Save result table in *_all/sig.txt
 
 # 清空工作环境 Clean enviroment object
 rm(list=ls()) 
@@ -164,7 +187,7 @@ rm(list=ls())
 # 2.1 安装CRAN来源常用包
 site="https://mirrors.tuna.tsinghua.edu.cn/CRAN"
 # 依赖包列表：参数解析、数据变换、绘图和开发包安装、安装依赖、ggplot主题
-package_list = c("reshape2","ggplot2","vegan")
+package_list = c("limma","ggplot2","pheatmap","dplyr","devtools")
 # 判断R包加载是否成功来决定是否安装后再加载
 for(p in package_list){
 	if(!suppressWarnings(suppressMessages(require(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
@@ -174,7 +197,7 @@ for(p in package_list){
 }
 
 # 2.2 安装bioconductor常用包
-package_list = c("digest","ggrepel")
+package_list = c("edgeR")
 for(p in package_list){
 	if(!suppressWarnings(suppressMessages(require(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
 		source("https://bioconductor.org/biocLite.R")
@@ -204,110 +227,128 @@ design\$group = design\$${g1}
 
 # 按实验组筛选 Select by manual set group
 if ($select1){
-	sub_design = subset(design, group %in% c(${g1_list}))
+	design = subset(design, group %in% c(${g1_list}))
 # 调置组排序 Set group order
-	sub_design\$group  = factor(sub_design\$group, levels=c(${g1_list}))
-}else{
-	sub_design = design[,c("SampleID","group")]
+	design\$group  = factor(design\$group, levels=c(${g1_list}))
 }
+
+# 读取OTU表
+otutab = read.table(paste("${input}", sep=""), header=T, row.names=1, sep="\t", comment.char="") 
+
+# 实验设计与输入文件交叉筛选
+idx = rownames(design) %in% colnames(otutab)
+design = design[idx,]
+otutab = otutab[,rownames(design)]
+
+# 按丰度值按组中位数筛选OTU
+# 标准化为比例，并转置
+norm = t(otutab)/colSums(otutab,na=T)
+# 筛选组信
+grp = design[, "group", drop=F]
+# 按行名合并
+mat_t2 = merge(grp, norm, by="row.names")
+mat_t2 = mat_t2[,-1]
+# 按组求中位数
+mat_mean = aggregate(mat_t2[,-1], by=mat_t2[1], FUN=median) # mean
+mat_mean_final = do.call(rbind, mat_mean)[-1,]
+geno = mat_mean\$group
+colnames(mat_mean_final) = geno
+# 按丰度按组中位数筛选
+filtered = mat_mean_final[apply(mat_mean_final,1,max) > ${abundance_threshold}, ] # select OTU at least one sample > 0.1%
+otutab = otutab[rownames(filtered),]
+
+END
 
 # 4. 循环对每个分类级统计与绘图
 
-method = c(${method})
-for(m in method){
-	# 读取usearch tax文件
-	tax_sample = read.table(paste("${input}", m, ".txt", sep=""), header=T, row.names=1, sep="\t", comment.char="") 
 
-	# 按丰度降序排序
-	mean_sort = tax_sample[(order(-rowSums(tax_sample))), ]
-	mean_sort = as.data.frame(mean_sort)
-	# 筛选高丰度的 ${number} 类，其它归为低丰度Low abundance，可设置选择数量，即图例显示数量
-	other = colSums(mean_sort[${number}:dim(mean_sort)[1], ])
-	mean_sort = mean_sort[1:(${number} - 1), ]
-	mean_sort = rbind(mean_sort,other)
-	rownames(mean_sort)[${number}] = c("Low abundance")
-	# 再次检验计算是否出错
-	# colSums(mean_sort)
+cat <<END >>script/compare.R
 
-	# 实验设计与输入文件交叉筛选
-	idx = rownames(sub_design) %in% colnames(mean_sort)
-	sub_design=sub_design[idx,]
-	mean_sort = mean_sort[,rownames(sub_design)]
+compare_DA = function(compare){
+	# 筛选比较组
+	group_list = as.vector(as.matrix(compare))
+	idx = design\$group %in% group_list
+	sub_design=design[idx,]
+	sub_dat=as.matrix(otutab[,rownames(sub_design)])
+
+	d = DGEList(counts=sub_dat,group=factor(sub_design\$group))
+	d = calcNormFactors(d)
+	# check samples is in right groups
+	d\$samples 
+
+	design.mat = model.matrix(~ 0 + factor(sub_design\$group))
+	rownames(design.mat)=colnames(sub_dat)
+	colnames(design.mat)=levels(factor(sub_design\$group))
+	DAO = estimateDisp(d,design.mat)
+	fit = glmFit(DAO,design.mat)
+	SampAvsB=paste(group_list[1] ,"-", group_list[2], sep="")
+	BvsA <- makeContrasts(contrasts = SampAvsB, levels=design.mat)
+	lrt = glmLRT(fit,contrast=BvsA)
+	nrDAO=as.data.frame(topTags(lrt, n=nrow(sub_dat)))
+
+	# 整理数据格式
+	nrDAO\$logFC=round(nrDAO\$logFC,3)
+	nrDAO\$logCPM=round(nrDAO\$logCPM,3)
+	nrDAO\$level = ifelse(nrDAO\$logFC>log2(${fold_change}) & nrDAO\$PValue<${pvalue} & nrDAO\$FDR<${FDR}, "Enriched",ifelse(nrDAO\$logFC<log2(${fold_change})*(-1) & nrDAO\$PValue<${pvalue} & nrDAO\$FDR<${FDR}, "Depleted","NotSig"))
+	nrDAO\$level=factor(nrDAO\$level,levels = c("Enriched","Depleted","NotSig"))
+
+	# Add MeanA and MeanB in percentage
+	# normlization to percentage
+	norm = t(t(sub_dat)/colSums(sub_dat,na=T))*100
+	# check norm is right?
+	colSums(norm)
+	# calculate groupA mean
+	A_list = subset(sub_design, group %in% group_list[1])
+	A_norm = norm[, rownames(A_list)]
+	A_mean = as.data.frame(rowMeans(A_norm))
+	colnames(A_mean)=c("MeanA")
+	# calculate groupB mean
+	B_list = subset(sub_design, group %in% group_list[2])
+	B_norm = norm[, rownames(B_list)]
+	B_mean = as.data.frame(rowMeans(B_norm))
+	colnames(B_mean)=c("MeanB")
+	# merge and reorder
+	Mean = round(cbind(A_mean, B_mean, A_norm, B_norm),3)
+	Mean = Mean[rownames(nrDAO),]   
+	output=cbind(nrDAO[,-3],Mean)
+
+	# write all OTU for volcano plot and manhattan plot
+	write.table(paste(SampAvsB, "\t",sep=""), file=paste("$output", SampAvsB, "_all.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
+	suppressWarnings(write.table(output,file=paste("$output", SampAvsB, "_all.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
+
+	# 计算上、下调OTUs数量，写入统计文件
+	NoE= dim(output[output\$level=="Enriched",])[1]
+	NoD= dim(output[output\$level=="Depleted",])[1]
+	NoN= dim(output[output\$level=="NotSig",])[1]
+	suppressWarnings(write.table(paste( SampAvsB, NoE, NoD, NoN, sep="\t"), file=paste("$output", "summary.txt",sep=""), append = T, quote = F, sep = '\t', row.names = F, col.names = F))
+
+	output=output[output\$level!="NotSig",]
+	# 保存筛选结果于sig.txt结尾文件中
+	write.table(paste(SampAvsB, "\t",sep=""), file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
+	suppressWarnings(write.table(output, file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
+}
 
 
-	# 4.1 每个样品堆叠图 Stackplot for each samples
+# 记录各组间上、下调数量
+write.table("GroupAvsB\tEnriched\tDepleted\tNotSig\n", file=paste("$output", "summary.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
 
-	# 保存变量备份，并输出至文件
-	merge_tax=mean_sort
-	write.table("\t", file=paste("${output}", m, "_sample.txt",sep=""),append = F, quote = F, eol = "", row.names = F, col.names = F)
-	write.table(merge_tax, file=paste("${output}", m, "_sample.txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T)
-
-	# 提取样品组信息,默认为genotype可指定
-	sampFile = data.frame(sample=row.names(sub_design), group=sub_design\$group,row.names = row.names(sub_design))
-
-	# 添加分类学列
-	mean_sort\$tax = rownames(mean_sort)
-	data_all = as.data.frame(melt(mean_sort, id.vars=c("tax")))
-	# 按丰度顺序，默认为字母顺序 set taxonomy order by abundance, default by alphabet
-	if (${order}){
-		data_all\$tax  = factor(data_all\$tax, levels=rownames(mean_sort))
+# 如果没有比较文件，则自动全循环
+if (!file.exists("${compare}")) {
+	compare_data = as.vector(unique(sub_design\$group))
+	len_compare_data = length(compare_data)
+	for(i in 1:(len_compare_data-1)) {
+		for(j in (i+1):len_compare_data) {
+			tmp_compare = as.data.frame(cbind(sampA=compare_data[i],sampB=compare_data[j]))
+			compare_DA(tmp_compare)
+		}
 	}
-	data_all = merge(data_all, sampFile, by.x="variable", by.y = "sample")
-
-	p = ggplot(data_all, aes(x=variable, y = value, fill = tax )) + 
-		geom_bar(stat = "identity",position="fill", width=1)+ 
-		scale_y_continuous(labels = scales::percent) + 
-		# 分面，进一步按group分组，x轴范围自由否则位置异常，swith设置标签底部，并调置去除图例背景
-		facet_grid( ~ group, scales = "free_x", switch = "x") +  theme(strip.background = element_blank())+
-		# 关闭x轴刻度和标签
-		theme(axis.ticks.x = element_blank(), axis.text.x = element_blank())+
-		xlab("Groups")+ylab("Percentage (%)")+ theme_classic()+theme(axis.text.x=element_text(angle=45,vjust=1, hjust=1))
-	p
-	# 保存pdf和png格式方便查看和编辑
-	ggsave(paste("${output}", m, "_sample.pdf", sep=""), p, width = $width, height = $height)
-	ggsave(paste("${output}", m, "_sample.png", sep=""), p, width = $width, height = $height)
-	print(paste("${output}", m, "_sample.pdf/png/txt finished.", sep = ""))
-
-
-	# 4.2 按组均值绘制柱状图
-
-	# 按组合并求均值
-	# 转置样品名添加组名，并去除多余的两个样品列
-	mat_t = t(merge_tax)
-	mat_t2 = merge(sampFile, mat_t, by="row.names")
-	mat_t2 = mat_t2[,c(-1,-2)]
-
-	# 按组求均值，转置，再添加列名
-	mat_mean = aggregate(mat_t2[,-1], by=mat_t2[1], FUN=mean) # mean
-	mat_mean_final = do.call(rbind, mat_mean)[-1,]
-	geno = mat_mean\$group
-	colnames(mat_mean_final) = geno
-
-	# 保存变量备份，并输出至文件
-	mean_sort=as.data.frame(mat_mean_final)
-	write.table("\t", file=paste("${output}", m, "_group.txt",sep=""),append = F, quote = F, eol = "", row.names = F, col.names = F)
-	write.table(merge_tax, file=paste("${output}", m, "_group.txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T)
-
-	# 数据转换长表格并绘图
-	mean_sort\$tax = rownames(mean_sort)
-	data_all = as.data.frame(melt(mean_sort, id.vars=c("tax")))
-	# 按丰度顺序，默认为字母顺序 set taxonomy order by abundance, default by alphabet
-	if (${order}){
-		data_all\$tax  = factor(data_all\$tax, levels=rownames(mean_sort))
+# 有比较文件，按设计比较
+}else {
+	compare_data = read.table("${compare}", sep="\t", check.names=F, quote='', comment.char="")
+	colnames(compare_data) = c("sampA", "sampB")
+	for(i in 1:dim(compare_data)[1]){
+		compare_DA(compare_data[i,])
 	}
-
-	p = ggplot(data_all, aes(x=variable, y = value, fill = tax )) + 
-	  geom_bar(stat = "identity",position="fill", width=0.7)+ 
-	  scale_y_continuous(labels = scales::percent) + 
-	  xlab("Groups")+ylab("Percentage (%)")+ theme_classic()
-	p
-
-	# 保存pdf和png格式方便查看和编辑
-	ggsave(paste("${output}", m, "_group.pdf", sep=""), p, width = $width, height = $height)
-	ggsave(paste("${output}", m, "_group.png", sep=""), p, width = $width, height = $height)
-	print(paste("${output}", m, "_group.pdf/txt finished.", sep = ""))
-
-	print("")
 }
 
 END
@@ -317,5 +358,6 @@ END
 # 执行脚本，脚本运行目录即工作目录(与脚本位置无关)
 if test "${execute}" == "TRUE";
 then
-	Rscript script/tax_stackplot.R
+	mkdir -p ${output}
+	Rscript script/compare.R
 fi

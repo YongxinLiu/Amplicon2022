@@ -361,14 +361,16 @@ tax_stackplot: beta_cpcoa
 		-o ${ts_output} -h ${ts_height} -w ${ts_width}
 
 # 2.6 DA_compare 组间差异比较 edgeR or wilcox
-## 需要otu表、实验设计和物种注释
+## 需要OTU表、实验设计和物种注释
 DA_compare: tax_stackplot
-#	touch $@
-	compare.sh -i ${ts_input} -m ${ts_level} -n ${ts_number} \
-		-d ${ts_design} -A ${ts_group_name} -B ${ts_group_list} -O ${ts_order} \
-		-o ${ts_output} -h ${ts_height} -w ${ts_width}
+	touch $@
+	compare.sh -i ${Dc_input} -c ${Dc_compare} -m ${Dc_method} \
+		-p ${Dc_pvalue} -q ${Dc_FDR} -F ${Dc_FC} -t ${abundance_thre} \
+		-d ${Dc_design} -A ${Dc_group_name} -B ${Dc_group_list} \
+		-o ${Dc_output}
 
-
+# 2.7 plot_volcano 基于差异OTU表绘制火山图
+plot_volcano.sh -i result/compare/ACT2KO-Col_all.txt -o result/compare/ACT2KO-Col
 
 
 
