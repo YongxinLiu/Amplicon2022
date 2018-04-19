@@ -17,7 +17,7 @@ order=FALSE
 pvaule=0.01
 FDR=0.05
 fold_change=1.3
-abundance_threshold=0.0005
+abundance_threshold=0.0001
 
 # 脚本功能描述 Function for script description and usage
 usage()
@@ -26,8 +26,8 @@ cat <<EOF >&2
 Usage:
 -------------------------------------------------------------------------------
 Filename:    compare.sh
-Version:     1.0
-Date:        2018/4/7
+Version:     1.1
+Date:        2018/4/9
 Author:      Yong-Xin Liu
 Email:       metagenome@126.com
 Website:     https://blog.csdn.net/woodcorpse
@@ -43,6 +43,10 @@ https://doi.org/10.1007/s11427-018-9284-4
 -------------------------------------------------------------------------------
 Version 1.0 2018/4/7
 Group compare by edgeR or wilcon.test, input OTU table mustbe in raw reads counts
+Version 1.1 2018/4/9
+Add wilcox rank test, select method in wilcox
+
+
 # All input and output should be in default directory, or give relative or absolute path by -i/-d
 
 # Input files: design.txt, otutab.txt
@@ -149,7 +153,7 @@ do
 done
 
 # 当选择列表为空时，关闭实验设计筛选
-if [ ${g1_list} == ""]; then
+if [ ${g1_list} = ""]; then
 	select1=FALSE
 fi
 
@@ -259,10 +263,13 @@ otutab = otutab[rownames(filtered),]
 
 END
 
-# 4. 循环对每个分类级统计与绘图
+# 4. 建立统计分析的函数，有lrt和wilcoxon可选
 
-
+if [ $method = "edgeR" ]; then
+	
 cat <<END >>script/compare.R
+
+print(paste("你正在edgeR的负二项分布普通线性模型glmLRT方法统计！Now, you are using edgeR Genewise Negative Binomial Generalized Linear Models!", sep=" "))
 
 compare_DA = function(compare){
 	# 筛选比较组
@@ -274,7 +281,7 @@ compare_DA = function(compare){
 	d = DGEList(counts=sub_dat,group=factor(sub_design\$group))
 	d = calcNormFactors(d)
 	# check samples is in right groups
-	d\$samples 
+	# d\$samples 
 
 	design.mat = model.matrix(~ 0 + factor(sub_design\$group))
 	rownames(design.mat)=colnames(sub_dat)
@@ -328,6 +335,88 @@ compare_DA = function(compare){
 	suppressWarnings(write.table(output, file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
 }
 
+END
+
+elif [ $method = "wilcox" ]; then
+	
+cat <<END >>script/compare.R
+print(paste("你正在使用秩和检验！Now, you are using wilcoxon test!", sep=" "))
+
+compare_DA = function(compare){
+	# 筛选比较组wilcox
+	group_list = as.vector(as.matrix(compare))
+	SampAvsB=paste(group_list[1] ,"-", group_list[2], sep="")
+	idx = design\$group %in% group_list
+	sub_design=design[idx,]
+	sub_dat=as.matrix(otutab[,rownames(sub_design)])
+
+	# wilcoxon秩合检验，需要先标准化
+	# normlization to percentage
+	sub_norm = t(t(sub_dat)/colSums(sub_dat,na=T))*100
+	
+	# 建立两组的矩阵
+	idx = sub_design\$group %in% group_list[1]
+	GroupA = sub_norm[,rownames(sub_design[idx,])]
+	idx = sub_design\$group %in% group_list[2]
+	GroupB = sub_norm[,rownames(sub_design[idx,])]
+	
+	nrDAO = data.frame(list=rownames(sub_norm), row.names =rownames(sub_norm) )
+	# 对每行OUT/基因进行秩合检验
+	# dim(nrDAO)[1]
+	for ( i in 1:dim(nrDAO)[1]){
+		FC = (mean(GroupA[i,])+0.0001)/(mean(GroupB[i,])+0.0001)
+		nrDAO[i,2]=log2(FC)
+		nrDAO[i,3]=log2(max(c(GroupA[i,],GroupB[i,]))*10000)
+		nrDAO[i,4]= wilcox.test(as.numeric(GroupA[i,]),as.numeric(GroupB[i,]))\$p.value
+	}	
+	nrDAO=nrDAO[,-1]
+	colnames(nrDAO)=c("logFC", "logCPM", "PValue")
+	nrDAO\$FDR = p.adjust(nrDAO\$PValue, method="fdr", dim(nrDAO)[1])    #p.adjust就是计算FDR的包，这个可要记得了
+	
+
+	# 整理数据格式
+	nrDAO\$logFC=round(nrDAO\$logFC,3)
+	nrDAO\$logCPM=round(nrDAO\$logCPM,3)
+	nrDAO\$level = ifelse(nrDAO\$logFC>log2(${fold_change}) & nrDAO\$PValue<${pvalue} & nrDAO\$FDR<${FDR}, "Enriched",ifelse(nrDAO\$logFC<log2(${fold_change})*(-1) & nrDAO\$PValue<${pvalue} & nrDAO\$FDR<${FDR}, "Depleted","NotSig"))
+	nrDAO\$level=factor(nrDAO\$level,levels = c("Enriched","Depleted","NotSig"))
+
+	# Add MeanA and MeanB in percentage
+	# calculate groupA mean
+	A_list = subset(sub_design, group %in% group_list[1])
+	A_norm = sub_norm[, rownames(A_list)]
+	A_mean = as.data.frame(rowMeans(A_norm))
+	colnames(A_mean)=c("MeanA")
+	# calculate groupB mean
+	B_list = subset(sub_design, group %in% group_list[2])
+	B_norm = sub_norm[, rownames(B_list)]
+	B_mean = as.data.frame(rowMeans(B_norm))
+	colnames(B_mean)=c("MeanB")
+	# merge and reorder
+	Mean = round(cbind(A_mean, B_mean, A_norm, B_norm),3)
+	Mean = Mean[rownames(nrDAO),]   
+	output=cbind(nrDAO,Mean)
+
+	# write all OTU for volcano plot and manhattan plot
+	write.table(paste(SampAvsB, "\t",sep=""), file=paste("$output", SampAvsB, "_all.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
+	suppressWarnings(write.table(output,file=paste("$output", SampAvsB, "_all.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
+
+	# 计算上、下调OTUs数量，写入统计文件
+	NoE= dim(output[output\$level=="Enriched",])[1]
+	NoD= dim(output[output\$level=="Depleted",])[1]
+	NoN= dim(output[output\$level=="NotSig",])[1]
+	suppressWarnings(write.table(paste( SampAvsB, NoE, NoD, NoN, sep="\t"), file=paste("$output", "summary.txt",sep=""), append = T, quote = F, sep = '\t', row.names = F, col.names = F))
+
+	output=output[output\$level!="NotSig",]
+	# 保存筛选结果于sig.txt结尾文件中
+	write.table(paste(SampAvsB, "\t",sep=""), file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
+	suppressWarnings(write.table(output, file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
+}
+
+END
+
+fi
+
+cat <<END >>script/compare.R
 
 # 记录各组间上、下调数量
 write.table("GroupAvsB\tEnriched\tDepleted\tNotSig\n", file=paste("$output", "summary.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
@@ -340,14 +429,16 @@ if (!file.exists("${compare}")) {
 		for(j in (i+1):len_compare_data) {
 			tmp_compare = as.data.frame(cbind(sampA=compare_data[i],sampB=compare_data[j]))
 			compare_DA(tmp_compare)
+			print(paste(Compared, tmp_compare[,1], "vs",tmp_compare[,2] ,"finished!", sep=" "))
 		}
 	}
-# 有比较文件，按设计比较
+# 有比较文件compare.txt，按设计比较
 }else {
 	compare_data = read.table("${compare}", sep="\t", check.names=F, quote='', comment.char="")
 	colnames(compare_data) = c("sampA", "sampB")
 	for(i in 1:dim(compare_data)[1]){
 		compare_DA(compare_data[i,])
+		print(paste("Compared", compare_data[i,1], "vs", compare_data[i,2],"finished!", sep=" "))
 	}
 }
 

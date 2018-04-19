@@ -26,13 +26,13 @@ usage()
 cat <<EOF >&2
 Usage:
 -------------------------------------------------------------------------------
-Filename:    plot_volcano.sh
+Filename:    plot_heatmap.sh
 Version:     1.0
 Date:        2018/4/9
 Author:      Yong-Xin Liu
 Email:       metagenome@126.com
 Website:     https://blog.csdn.net/woodcorpse
-Description: Draw volcano plot by compare result, must have logFC, logCPM and level
+Description: Draw heatmap plot by compare result, must have logFC, logCPM and level
 Notes:       
 -------------------------------------------------------------------------------
 Copyright:   2018 (c) Yong-Xin Liu
@@ -43,7 +43,7 @@ Root microbiota shift in rice correlates with resident time in the field and dev
 https://doi.org/10.1007/s11427-018-9284-4
 -------------------------------------------------------------------------------
 Version 1.0 2018/4/9
-Draw volcano plot by compare result, must have logFC, logCPM and level
+Draw heatmap plot by compare result, must have logFC, logCPM and level
 # All input and output should be in default directory, or give relative or absolute path by -i/-d
 
 # Input files: design.txt, otutab.txt
@@ -54,12 +54,13 @@ OTU_1   2.325   16.526  4.89025111048812e-21    2.60650384189017e-18    Enriched
 OTU_14  1.855   13.241  1.93349602816079e-15    5.1527669150485e-13     Enriched        1.31   
 
 # Output file
-1. volacno plot in pdf and png
+1. heatmap plot in pdf and png
 
 OPTIONS:
 	-c compare list file, default doc/compare.txt
 	-d design for each samples, default doc/design.txt
 	-e execuate Rscript, default TRUE
+	-h figure height, default 8
 	-i OTU table in reads counts, default result/otutab.txt
 	-m statistics method, default edgeR, alternative wilcon
 	-o output director, default result/tax/
@@ -74,7 +75,7 @@ OPTIONS:
 	-? show help of script
 
 Example:
-plot_volcano.sh -i ${input} -o ${output} -w ${width} -h ${height}
+plot_heatmap.sh -i ${input} -o ${output} -w ${width} -h ${height}
 
 EOF
 }
@@ -147,7 +148,7 @@ done
 mkdir -p script
 
 # 开始写R统计绘图脚本
-cat <<END >script/plot_volcano.R
+cat <<END >script/plot_heatmap.R
 #!/usr/bin/env Rscript
 # 
 # Copyright 2016-2018 Yong-Xin Liu <metagenome@126.com>
@@ -212,22 +213,36 @@ for(p in package_list){
 
 # 读取比较列表
 input = read.table("${input}", header=T, row.names=1, sep="\t", comment.char="")
-input\$level=factor(input\$level,levels = c("Enriched","Depleted","NotSig"))
-NoE= dim(input[input\$level=="Enriched",])[1]
-NoD= dim(input[input\$level=="Depleted",])[1]
+input\$level=factor(input\$level,levels = c("Enriched","Depleted"))
 
-# 绘制火山图
-p = ggplot(input, aes(x=logFC, y=logCPM, color=level)) + 
-	geom_point() + xlim(-4, 4) + theme_classic()+
-	scale_colour_manual(values=c("red","green","grey")) + 
-	labs(x="log2(fold change)", y="log2(count per million)")+ 
-	annotate("text",x=-3,y=15,label=paste(NoD,sep=""))+ 
-	annotate("text",x=3,y=15,label=paste(NoE,sep=""))
-#p
-suppressWarnings(ggsave(paste("${output}", "_volcano.pdf", sep=""), p, width = $width, height = $height))
-suppressWarnings(ggsave(paste("${output}", "_volcano.png", sep=""), p, width = $width, height = $height))
+design = read.table("${design}", header=T, row.names=1, sep="\t", comment.char="")
+# 统一改实验列为group
+design\$group = design\$${g1}
+
+norm = input[,-(1:7)]
+
+idx = rownames(design) %in% colnames(norm)
+design = design[idx,]
+
+anno_row = data.frame(Level = input\$level, row.names = rownames(input))
+anno_col = data.frame(Group = design\$group, row.names = rownames(design))
+
+
+
+pheatmap(norm,
+	scale = "row",
+	cutree_rows=2,cutree_cols = 2,
+	annotation_col = anno_col, 
+	annotation_row = anno_row,
+	filename = paste("$output", "_heatmap.pdf", sep=""),
+	width=$width, height=$height, 
+	annotation_names_row= T,annotation_names_col=T,
+	show_rownames=T,show_colnames=T,
+	# main = paste("Differential abundance OTUs of",group_list[1], "vs", group_list[2],sep=" "),
+	fontsize=7,display_numbers=F)
+
 # 提示工作完成
-print(paste("Output in ${output}", "_volcano.pdf finished.", sep = ""))
+print(paste("Output in ${output}", "_heatmap.pdf finished.", sep = ""))
 
 END
 
@@ -237,5 +252,5 @@ END
 if test "${execute}" == "TRUE";
 then
 	mkdir -p ${output}
-	Rscript script/plot_volcano.R
+	Rscript script/plot_heatmap.R
 fi

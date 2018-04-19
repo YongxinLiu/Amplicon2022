@@ -140,8 +140,8 @@ text_size=7
 legend_number=10
 # 差异统计按丰度过滤 abundance filter，如丰度按万分之一过滤，减少计算量，提高OTU的FDR值，可选十万/百万之一
 abundance_thre=0.0001
-# 差异比较方法，默认是edgeR的 lrt ，可选 wilcoxon 秩和检验
-compare_method="lrt"
+# 差异比较方法，默认是 edgeR ，可选 wilcox 秩和检验
+compare_method="edgeR"
 # 显著性P值过滤 threshold of P-value，可选0.05, 0.01, 0.001。采用FDR校正，此参数意义不大，即使0.001也没有FDR < 0.2过滤严格
 pvalue=0.01
 # 统计检验方式fdr
@@ -235,6 +235,16 @@ Dc_group_name=${g1}
 Dc_group_list=${g1_list}
 Dc_output=${wd}/result/compare/
 
+# 2.7 plot_volcano 基于差异OTU表绘制火山图
+pv_input=${wd}/result/tax/sum_
+pv_design=${design}
+pv_output=${pv_input}
+pv_width=5
+pv_height=7
+# 显列图例的数量，推荐6，8，10，默认10
+pv_number=${legend_number}
+# 设置图例的顺序，默认FALSE按分类单元字母顺序排列，TRUE则按丰度由到大小排列
+pv_order=FALSE
 
 
 

@@ -370,13 +370,25 @@ DA_compare: tax_stackplot
 		-o ${Dc_output}
 
 # 2.7 plot_volcano 基于差异OTU表绘制火山图
-plot_volcano.sh -i result/compare/ACT2KO-Col_all.txt -o result/compare/ACT2KO-Col
-
-
-
-# 2.7 差异OTU绘制火山图
+plot_volcano: DA_compare
+#	touch $@
+# 指定文件绘制单个图
+#	plot_volcano.sh -i result/compare/ACT2KO-Col_all.txt -o result/compare/ACT2KO-Col
+# awk调用批量绘制文件，grep -v删空行
+	awk 'BEGIN{OFS=FS="\t"}{system("plot_volcano.sh -i result/compare/"$$1"-"$$2"_all.txt -o result/compare/"$$1"-"$$2);}' \
+		<(grep -v '^$$' ${Dc_compare})
 
 # 2.8 差异OTU绘制热图
+plot_heatmap: DA_compare
+#	touch $@
+# 指定文件绘制单个图
+	plot_heatmap.sh -i result/compare/ACT2KO-Col_sig.txt -o result/compare/ACT2KO-Col -w ${pv_width} -h ${pv_height}
+# awk调用批量绘制文件，grep -v删空行
+	awk 'BEGIN{OFS=FS="\t"}{system("plot_volcano.sh -i result/compare/"$$1"-"$$2"_all.txt \
+		-o result/compare/"$$1"-"$$2" -w ${pv_width} -h ${$pv_height}");}' \
+		<(grep -v '^$$' ${Dc_compare})
+
+
 
 # 2.9 差异OTU绘制曼哈顿图
 
