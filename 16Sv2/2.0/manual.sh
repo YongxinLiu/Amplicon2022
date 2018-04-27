@@ -1,9 +1,8 @@
 # 0 准备工作
 
 # 准备流程配置文件
-cd ~/ath/jt.HuangAC/batch3v2
-# 程序测序项目，使用ln -s。新项目请使用cp
-ln -s /mnt/bai/yongxin/github/Amplicon/16Sv2/makefile.sh makefile
+cp ~/github/Amplicon/16Sv2/makefile.sh makefile
+cp ~/github/Amplicon/16Sv2/manual.sh ./
 
 # 建立初始目录
 make init

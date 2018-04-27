@@ -1,12 +1,10 @@
 SHELL:=/bin/bash
 
-	# 16S扩增子分析流程第二版 16S Amplicon pipeline version 2
+# 16S扩增子分析流程第二版 16S Amplicon pipeline version 2
 
-	# 帮助文档
-	
-	# 流程所需的软件、脚本及数据库版本
-	# Help: Pipeline dependency version of softwares, scripts and databases
 
+
+# 0 帮助文档：流程所需的软件、脚本及数据库版本 Help: Pipeline dependency version of softwares, scripts and databases
 version: 
 	# 2018/4/2 1.0 Standard 16S anlysis report
 	# 
@@ -28,7 +26,7 @@ version:
 	# rdp train set 16 # taxonomy database
 	# silva132 # chimera reference, and/or taxonomy database 
 
-	# 0.1 建立程序必须目录 Create work directory
+# 0.1 建立程序必须目录 Create work directory
 init:
 	touch $@
 	mkdir -p seq

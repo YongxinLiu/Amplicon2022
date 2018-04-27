@@ -14,6 +14,8 @@ width=8
 height=5
 text_size=7
 execute=TRUE
+transposition=FALSE
+normlizatation=FALSE
 
 # 脚本功能描述 Function for script description and usage
 usage()
@@ -64,6 +66,8 @@ OPTIONS:
 	-h figure height, default 5
 	-i alpha diversity index, default result/alpha/index.txt
 	-m index method, default "chao1","richness","shannon_e"; alpha指数种类14种 "berger_parker","buzas_gibson","chao1","dominance","equitability","jost","jost1","reads","richness","robbins","simpson","shannon_e","shannon_2","shannon_10"
+	-n normalization 是否自身标准化为百分比
+	-t transposition 是否转换，默认行样品列属性，OTU表需转置
 	-o output director, default result/alpha/
 	-s text size, default 7
 	-w figure width, default 8
@@ -79,7 +83,7 @@ EOF
 
 
 # 参数解析 Analysis parameter
-while getopts "d:e:h:i:m:o:s:w:A:B:" OPTION
+while getopts "d:e:h:i:m:n:o:s:t:w:A:B:" OPTION
 do
 	case $OPTION in
 		d)
@@ -97,11 +101,17 @@ do
 		m)
 			method=$OPTARG
 			;;
+		n)
+			normlizatation=$OPTARG
+			;;
 		o)
 			output=$OPTARG
 			;;
 		s)
 			text_size=$OPTARG
+			;;
+		t)
+			transposition=$OPTARG
 			;;
 		w)
 			width=$OPTARG
@@ -195,6 +205,15 @@ for(p in package_list){
 # 读取usearch alpha文件
 alpha = read.table("${input}", header=T, row.names=1, sep="\t", comment.char="") 
 
+# 转置数据矩阵
+if ($transposition){
+	alpha = as.data.frame(t(alpha))
+}
+
+# 标准化数据矩阵
+if ($normlizatation){
+	alpha = as.data.frame(alpha/rowSums(alpha,na=T) * 1000) # normalization to 1000
+}
 # 读取实验设计
 design = read.table("${design}", header=T, row.names=1, sep="\t", comment.char="")
 # 统一改实验列为group
@@ -229,9 +248,9 @@ for(m in method){
 	# 提取比较结果
 	Tukey_HSD_table = as.data.frame(Tukey_HSD\$group) 
 	# 保存一个制表符，解决存在行名时，列名无法对齐的问题
-	write.table(paste(m, "\n\t", sep=""), file=paste("${output}/",m,".txt",sep=""),append = F, quote = F, eol = "", row.names = F, col.names = F)
+	write.table(paste(m, "\n\t", sep=""), file=paste("${output}",m,".txt",sep=""),append = F, quote = F, eol = "", row.names = F, col.names = F)
 	# 保存统计结果，有waring正常
-	write.table(Tukey_HSD_table, file=paste("${output}/",m,".txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T)
+	write.table(Tukey_HSD_table, file=paste("${output}",m,".txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T)
 
 	# LSD检验，添加差异组字母
 	out = LSD.test(model,"group", p.adj="none") # alternative fdr
@@ -252,6 +271,11 @@ for(m in method){
 		labs(x="Groups", y=paste(m, "index")) + theme_classic() +
 		geom_text(data=index, aes(x=group, y=y, color=group, label= stat)) +
 		geom_jitter( position=position_jitter(0.17), size=1, alpha=0.7)
+	if (length(unique(sub_design\$group))>5){
+		p=p+theme(axis.text.x=element_text(angle=45,vjust=1, hjust=1))
+	}
+
+
 	p
 	ggsave(paste("${output}", m, ".pdf", sep=""), p, width = $width, height = $height)
 	ggsave(paste("${output}", m, ".png", sep=""), p, width = $width, height = $height)
