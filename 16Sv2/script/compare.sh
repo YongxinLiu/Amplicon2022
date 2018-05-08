@@ -18,6 +18,7 @@ pvaule=0.01
 FDR=0.05
 fold_change=1.3
 abundance_threshold=0.0001
+taxonomy=result/taxonomy_8.txt
 
 # 脚本功能描述 Function for script description and usage
 usage()
@@ -26,8 +27,8 @@ cat <<EOF >&2
 Usage:
 -------------------------------------------------------------------------------
 Filename:    compare.sh
-Version:     1.1
-Date:        2018/4/9
+Version:     1.2
+Date:        2018/5/3
 Author:      Yong-Xin Liu
 Email:       metagenome@126.com
 Website:     https://blog.csdn.net/woodcorpse
@@ -45,6 +46,8 @@ Version 1.0 2018/4/7
 Group compare by edgeR or wilcon.test, input OTU table mustbe in raw reads counts
 Version 1.1 2018/4/9
 Add wilcox rank test, select method in wilcox
+Version 1.2 2018/5/3
+Add taxonomy in result, reture taxonomy sorted result
 
 
 # All input and output should be in default directory, or give relative or absolute path by -i/-d
@@ -75,6 +78,7 @@ OPTIONS:
 	-p pvaule, default 0.01
 	-q FDR/qvalue, default 0.05
 	-s text size, default 7
+	-t taxonomy file, default 7
 	-w figure width, default 8
 	-A group name
 	-B group selected list, empty will not select
@@ -261,6 +265,11 @@ colnames(mat_mean_final) = geno
 filtered = mat_mean_final[apply(mat_mean_final,1,max) > ${abundance_threshold}, ] # select OTU at least one sample > 0.1%
 otutab = otutab[rownames(filtered),]
 
+# 生成compare的database用于注释
+mat_mean_high = mat_mean_final[rownames(filtered),]
+write.table(paste("OTUID\t",sep=""), file=paste("result/compare/", "database.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
+suppressWarnings(write.table(round(mat_mean_high*100,3), file=paste("result/compare/", "database.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
+
 END
 
 # 4. 建立统计分析的函数，有lrt和wilcoxon可选
@@ -316,11 +325,19 @@ compare_DA = function(compare){
 	colnames(B_mean)=c("MeanB")
 	# merge and reorder
 	Mean = round(cbind(A_mean, B_mean, A_norm, B_norm),3)
-	Mean = Mean[rownames(nrDAO),]   
+	Mean = Mean[rownames(nrDAO),]
+
+	# 存在物种注释，添加至Mean前
+	if (file.exists("${taxonomy}")){
+	tax = read.table("${taxonomy}", header=T, row.names= 1, sep="\t", comment.char = "") 
+	tax = tax[rownames(nrDAO),]
+	Mean=cbind(tax, Mean)
+	}
+
 	output=cbind(nrDAO[,-3],Mean)
 
 	# write all OTU for volcano plot and manhattan plot
-	write.table(paste(SampAvsB, "\t",sep=""), file=paste("$output", SampAvsB, "_all.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
+	write.table(paste("OTUID", "\t",sep=""), file=paste("$output", SampAvsB, "_all.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
 	suppressWarnings(write.table(output,file=paste("$output", SampAvsB, "_all.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
 
 	# 计算上、下调OTUs数量，写入统计文件
@@ -394,6 +411,14 @@ compare_DA = function(compare){
 	# merge and reorder
 	Mean = round(cbind(A_mean, B_mean, A_norm, B_norm),3)
 	Mean = Mean[rownames(nrDAO),]   
+
+	# 存在物种注释，添加至Mean前
+	if (file.exists("${taxonomy}")){
+	tax = read.table("${taxonomy}", header=T, row.names= 1, sep="\t", comment.char = "") 
+	tax = tax[rownames(nrDAO),]
+	Mean=cbind(tax, Mean)
+	}
+
 	output=cbind(nrDAO,Mean)
 
 	# write all OTU for volcano plot and manhattan plot
@@ -410,6 +435,13 @@ compare_DA = function(compare){
 	# 保存筛选结果于sig.txt结尾文件中
 	write.table(paste(SampAvsB, "\t",sep=""), file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
 	suppressWarnings(write.table(output, file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
+	
+	# 确保有差异才写入，否则会出不完整行
+	if (dim(output)[1]>1){
+	# 保存差异列表用于维恩图展示 save each group DA OTU list for venndiagram
+	# write.table(cbind(rownames(output),paste(SampAvsB, output\$level, sep=""), output\$PValue), file=paste("result/compare/otu", ".list", sep=""), append = TRUE, sep="\t", quote=F, row.names=F, col.names=F) # 使用edgeR中的比较-相连，无法当变量赋值，改为_
+	write.table(cbind(rownames(output),paste(group_list[1],"_", group_list[2], output\$level, sep="")), file=paste("result/compare/otu", ".list", sep=""), append = TRUE, sep="\t", quote=F, row.names=F, col.names=F)
+	}
 }
 
 END
@@ -450,5 +482,7 @@ END
 if test "${execute}" == "TRUE";
 then
 	mkdir -p ${output}
+	rm -f result/compare/otu.list
 	Rscript script/compare.R
+	sed -i 's/Enriched/_E/;s/Depleted/_D/' result/compare/otu.list
 fi

@@ -265,6 +265,10 @@ for(m in method){
 	y=as.data.frame(y)
 	rownames(y)=y\$group
 	index\$y=y[as.character(index\$group),]\$Max + (max-min)*0.05
+	
+	# 输出原始数据，方便筛选 
+	write.table(paste("SampleID\t", sep=""), file=paste("${output}",m,"_raw.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
+	write.table(index[,c(m,"group")], file=paste("${output}",m,"_raw.txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T)
 
 	p = ggplot(index, aes(x=group, y=index[[m]], color=group)) +
 		geom_boxplot(alpha=1, outlier.size=0, size=0.7, width=0.5, fill="transparent") +

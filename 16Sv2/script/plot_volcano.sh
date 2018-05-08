@@ -216,7 +216,7 @@ input\$level=factor(input\$level,levels = c("Enriched","Depleted","NotSig"))
 NoE= dim(input[input\$level=="Enriched",])[1]
 NoD= dim(input[input\$level=="Depleted",])[1]
 
-# 绘制火山图
+# 绘制火山图，有上/下缺失时颜色会串
 p = ggplot(input, aes(x=logFC, y=logCPM, color=level)) + 
 	geom_point() + xlim(-4, 4) + theme_classic()+
 	scale_colour_manual(values=c("red","green","grey")) + 
@@ -236,6 +236,6 @@ END
 # 执行脚本，脚本运行目录即工作目录(与脚本位置无关)
 if test "${execute}" == "TRUE";
 then
-	mkdir -p ${output}
+	#mkdir -p ${output}
 	Rscript script/plot_volcano.R
 fi

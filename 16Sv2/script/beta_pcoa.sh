@@ -308,7 +308,7 @@ for(m in method){
 			for(j in (i+1):len_compare_data) {
 				tmp_compare = as.data.frame(cbind(sampA=compare_data[i],sampB=compare_data[j]))
 #				print(tmp_compare)
-				donis_pvalue = da_adonis(tmp_compare)
+				adonis_pvalue = da_adonis(tmp_compare)
 				write.table(adonis_pvalue, file=paste("$output", m, ".stat", sep=""), append = TRUE, sep="\t", quote=F, row.names=F, col.names=F)
 			}
 		}

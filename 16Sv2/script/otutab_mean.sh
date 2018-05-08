@@ -4,21 +4,12 @@
 set -e 
 
 # 默认参数 Default parameter
-input=result/compare/
-# 统计方法，默认edgeR基于负二项分布的检验，可选wilcoxon秩和检验，也叫‘Mann-Whitney’ test.
+input=result/otutab.txt
 design=doc/design.txt
 g1=groupID
 g1_list=''
-compare=doc/compare.txt
-output=result/compare/
+output=temp/otutab.mean
 execute=TRUE
-order=FALSE
-pvaule=0.01
-FDR=0.05
-fold_change=1.3
-abundance_threshold=0.0005
-width=4
-height=2.5
 
 # 脚本功能描述 Function for script description and usage
 usage()
@@ -26,14 +17,14 @@ usage()
 cat <<EOF >&2
 Usage:
 -------------------------------------------------------------------------------
-Filename:    plot_heatmap.sh
+Filename:    otutab_mean.sh
 Version:     1.0
-Date:        2018/4/9
+Date:        2018/5/6
 Author:      Yong-Xin Liu
 Email:       metagenome@126.com
 Website:     https://blog.csdn.net/woodcorpse
-Description: Draw heatmap plot by compare result, must have logFC, logCPM and level
-Notes:       
+Description: Group compare by edgeR or wilcon.test
+Notes:       Input OTU table mustbe in raw reads counts
 -------------------------------------------------------------------------------
 Copyright:   2018 (c) Yong-Xin Liu
 License:     GPL
@@ -42,31 +33,38 @@ Zhang, J., Zhang, N., Liu, Y.X., Zhang, X., Hu, B., Qin, Y., Xu, H., Wang, H., G
 Root microbiota shift in rice correlates with resident time in the field and developmental stage. Sci China Life Sci 61, 
 https://doi.org/10.1007/s11427-018-9284-4
 -------------------------------------------------------------------------------
-Version 1.0 2018/4/9
-Draw heatmap plot by compare result, must have logFC, logCPM and level
+Version 1.0 2018/5/6
+Calculate mean of OTU table 计算OTU表的均值
+
 # All input and output should be in default directory, or give relative or absolute path by -i/-d
 
 # Input files: design.txt, otutab.txt
 
-# 1. 差异比较OTU，有logFC, logCPM, level三列即可
-ACT2KO-Col      logFC   logCPM  PValue  FDR     level   MeanA   MeanB   ACT2KOr1        ACT2KOr
-OTU_1   2.325   16.526  4.89025111048812e-21    2.60650384189017e-18    Enriched        13.208 
-OTU_14  1.855   13.241  1.93349602816079e-15    5.1527669150485e-13     Enriched        1.31   
+# 1. 实验设计 doc/design.txt, SampleID and groupID column is needed
+#SampleID	BarcodeSequence	LinkerPrimerSequence	ReversePrimer	groupID	genotype
+GroupAr1	ACGCTCGACA	AACMGGATTAGATACCCKG	ACGTCATCCCCACCTTCC	GroupA	WT
+GroupAr2	ATCAGACACG	AACMGGATTAGATACCCKG	ACGTCATCCCCACCTTCC	GroupA	WT
+
+# 2. 标准化物种丰度表 result/tax/sum_*.txt, calculate by usearch10 -tax_div
+#OTU ID ACT1KDr1        ACT1KDr10       ACT1KDr11       ACT1KDr13   
+OTU_1   6898    4153    5775    1562    4774    4346    6469    4328
+OTU_10  1085    524     948     349     1000    741     1214    739 
 
 # Output file
-1. heatmap plot in pdf and png
+1. OTUs with pvalue & FDR & fold change
+2. Signifcantly abundance OTU.
 
 OPTIONS:
 	-c compare list file, default doc/compare.txt
 	-d design for each samples, default doc/design.txt
 	-e execuate Rscript, default TRUE
-	-h figure height, default 8
 	-i OTU table in reads counts, default result/otutab.txt
 	-m statistics method, default edgeR, alternative wilcon
-	-o output director, default result/tax/
+	-o output director, default temp/otutab.mean
 	-p pvaule, default 0.01
 	-q FDR/qvalue, default 0.05
 	-s text size, default 7
+	-t taxonomy file, default 7
 	-w figure width, default 8
 	-A group name
 	-B group selected list, empty will not select
@@ -75,7 +73,7 @@ OPTIONS:
 	-? show help of script
 
 Example:
-plot_heatmap.sh -i ${input} -o ${output} -w ${width} -h ${height}
+compare.sh -i ${input} -m '${method}' -d ${design} -A ${g1} -B '${g1_list}' -o ${output} -O ${order} -w ${width} -h ${height}
 
 EOF
 }
@@ -144,11 +142,16 @@ do
 	esac
 done
 
+# 当选择列表为空时，关闭实验设计筛选
+if [ ${g1_list} = ""]; then
+	select1=FALSE
+fi
+
 # 建立脚本目录
 mkdir -p script
 
 # 开始写R统计绘图脚本
-cat <<END >script/plot_heatmap.R
+cat <<END >script/otutab_mean.R
 #!/usr/bin/env Rscript
 # 
 # Copyright 2016-2018 Yong-Xin Liu <metagenome@126.com>
@@ -187,71 +190,51 @@ for(p in package_list){
   }
 }
 
-# 2.2 安装bioconductor常用包
-package_list = c("edgeR")
-for(p in package_list){
-	if(!suppressWarnings(suppressMessages(require(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
-		source("https://bioconductor.org/biocLite.R")
-		biocLite(p)
-		suppressWarnings(suppressMessages(library(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
-	}
-}
-
-# 2.3 安装Github常用包
-# 参数解析、数据变换、绘图和开发包安装
-package_list = c("kassambara/ggpubr")
-for(p in package_list){
-	q=unlist(strsplit(p,split = "/"))[2]
-	if(!suppressWarnings(suppressMessages(require(q, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
-		install_github(p)
-		suppressWarnings(suppressMessages(library(q, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
-	}
-}
-
-
 # 3. 读取输入文件
 
-# 读取比较列表
-input = read.table("${input}", header=T, row.names=1, sep="\t", comment.char="")
-input\$level=factor(input\$level,levels = c("Enriched","Depleted"))
-
+# 读取实验设计
 design = read.table("${design}", header=T, row.names=1, sep="\t", comment.char="")
 # 统一改实验列为group
 design\$group = design\$${g1}
 
-norm = input[,-(1:14)]
+# 按实验组筛选 Select by manual set group
+if ($select1){
+	design = subset(design, group %in% c(${g1_list}))
+# 调置组排序 Set group order
+	design\$group  = factor(design\$group, levels=c(${g1_list}))
+}
 
-idx = rownames(design) %in% colnames(norm)
-design = design[idx,]
+# 读取OTU表
+otutab = read.table(paste("${input}", sep=""), header=T, row.names=1, sep="\t", comment.char="") 
 
-anno_row = data.frame(Level = input\$level, row.names = rownames(input))
-anno_col = data.frame(Group = design\$group, row.names = rownames(design))
+# 实验设计与输入文件交叉筛选
+#idx = rownames(design) %in% colnames(otutab)
+#design = design[idx,]
+#otutab = otutab[,rownames(design)]
+
+# 按丰度值按组中位数筛选OTU
+# 标准化为比例，并转置
+norm = t(otutab)/colSums(otutab,na=T)*100
+
+mean = data.frame(OTUID = rownames(otutab), Mean = round(colMeans(norm),3))
+# 筛选组信
+#grp = design[, "group", drop=F]
+## 按行名合并
+#mat_t2 = merge(grp, norm, by="row.names")
+#mat_t2 = mat_t2[,-1]
+## 按组求中位数
+#mat_mean = aggregate(mat_t2[,-1], by=mat_t2[1], FUN=median) # mean
+#mat_mean_final = do.call(rbind, mat_mean)[-1,]
+#geno = mat_mean\$group
+#colnames(mat_mean_final) = geno
+## 按丰度按组中位数筛选
+#filtered = mat_mean_final[apply(mat_mean_final,1,max) > ${abundance_threshold}, ] # select OTU at least one sample > 0.1%
+#otutab = otutab[rownames(filtered),]
 
 
+# write.table(paste("OTUID", "\t",sep=""), file=paste("$output",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
+write.table(mean, file=paste("temp/otutab.mean", sep="\t"), append = F, quote = F, row.names = F, col.names = T, sep="\t")
 
-pheatmap(norm,
-	scale = "row",
-	cutree_rows=2,cutree_cols = 2,
-	annotation_col = anno_col, 
-	annotation_row = anno_row,
-	filename = paste("$output", "_heatmap.pdf", sep=""),
-	width=$width, height=$height, 
-	annotation_names_row= T,annotation_names_col=T,
-	show_rownames=T,show_colnames=T,
-	fontsize=7,display_numbers=F)
-
-pheatmap(norm,
-	scale = "row",
-	cutree_rows=2,cutree_cols = 2,
-	annotation_col = anno_col, 
-	annotation_row = anno_row,
-	filename = paste("$output", "_heatmap.png", sep=""),
-	width=$width, height=$height, 
-	annotation_names_row= T,annotation_names_col=T,
-	show_rownames=T,show_colnames=T,
-	fontsize=7,display_numbers=F)
-# 提示工作完成
-print(paste("Output in ${output}", "_heatmap.pdf finished.", sep = ""))
 
 END
 
@@ -260,6 +243,5 @@ END
 # 执行脚本，脚本运行目录即工作目录(与脚本位置无关)
 if test "${execute}" == "TRUE";
 then
-	mkdir -p ${output}
-	Rscript script/plot_heatmap.R
+	Rscript script/otutab_mean.R
 fi
