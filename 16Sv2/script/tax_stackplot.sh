@@ -202,7 +202,7 @@ for(p in package_list){
 # 3. 读取输入文件
 
 # 读取实验设计
-design = read.table("${design}", header=T, row.names=1, sep="\t", comment.char="")
+design = read.table("${design}", header=T, row.names=1, sep="\t")
 # 统一改实验列为group
 design\$group = design\$${g1}
 
@@ -244,7 +244,7 @@ for(m in method){
 	# 保存变量备份，并输出至文件
 	merge_tax=mean_sort
 	write.table("\t", file=paste("${output}", m, "_sample.txt",sep=""),append = F, quote = F, eol = "", row.names = F, col.names = F)
-	write.table(merge_tax, file=paste("${output}", m, "_sample.txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T)
+	suppressWarnings(write.table(merge_tax, file=paste("${output}", m, "_sample.txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T))
 
 	# 提取样品组信息,默认为genotype可指定
 	sampFile = data.frame(sample=row.names(sub_design), group=sub_design\$group,row.names = row.names(sub_design))
@@ -290,7 +290,7 @@ for(m in method){
 	# 保存变量备份，并输出至文件
 	mean_sort=as.data.frame(mat_mean_final)
 	write.table("\t", file=paste("${output}", m, "_group.txt",sep=""),append = F, quote = F, eol = "", row.names = F, col.names = F)
-	write.table(merge_tax, file=paste("${output}", m, "_group.txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T)
+	suppressWarnings(write.table(merge_tax, file=paste("${output}", m, "_group.txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T))
 
 	# 数据转换长表格并绘图
 	mean_sort\$tax = rownames(mean_sort)
@@ -304,6 +304,9 @@ for(m in method){
 	  geom_bar(stat = "identity",position="fill", width=0.7)+ 
 	  scale_y_continuous(labels = scales::percent) + 
 	  xlab("Groups")+ylab("Percentage (%)")+ theme_classic()
+	if (length(unique(data_all\$variable))>3){
+		p=p+theme(axis.text.x=element_text(angle=45,vjust=1, hjust=1))
+	}
 	p
 
 	# 保存pdf和png格式方便查看和编辑

@@ -288,4 +288,4 @@ SHELL:=/bin/bash
 
 
 
-include /mnt/bai/yongxin/github/Amplicon/16Sv2/main_pipeline.sh
+include /mnt/bai/yongxin/github/Amplicon/16Sv2/pipeline.md

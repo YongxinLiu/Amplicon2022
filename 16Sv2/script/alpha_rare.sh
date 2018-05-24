@@ -189,7 +189,7 @@ for(p in package_list){
 rare = read.table("${input}", header=T, row.names=1, sep="\t", comment.char="") 
 
 # 读取实验设计
-design = read.table("${design}", header=T, row.names=1, sep="\t", comment.char="")
+design = read.table("${design}", header=T, row.names=1, sep="\t")
 # 统一改实验列为group
 design\$group=design\$${g1}
 

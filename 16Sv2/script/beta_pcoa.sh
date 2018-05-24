@@ -41,7 +41,8 @@ https://doi.org/10.1007/s11427-018-9284-4
 -------------------------------------------------------------------------------
 Version 1.0 2018/4/5
 Based on QIIME beta_diversity.py and design, draw beta pcoa and statistics.
-
+Version 1.2 2018/5/8
+Output pcoa coordinate files
 # All input and output should be in default directory, or give relative or absolute path by -i/-d
 
 # Input files: design.txt, index.txt
@@ -70,8 +71,8 @@ OPTIONS:
 	-o output director, default result/beta/
 	-s text size, default 7
 	-w figure width, default 8
-	-A group name
-	-B group selected list, empty will not select
+	-A group name 组名
+	-B group selected list, empty will not select 组列表
 	-E add ellipse for each group
 	-? show help of script
 
@@ -208,7 +209,7 @@ da_adonis = function(sampleV){
 	if (length(unique(design2\$group))>1) {
 		sub_dis_table = dis_table[rownames(design2),rownames(design2)]
 		sub_dis_table = as.dist(sub_dis_table, diag = FALSE, upper = FALSE)
-		adonis_table = adonis(sub_dis_table ~ group, data = design2, permutations = 10000) 
+		adonis_table = adonis(sub_dis_table ~ group, data = design2, permutations = 1000) 
 		adonis_pvalue = adonis_table\$aov.tab\$\`Pr(>F)\`[1]
 		print(paste("In", m, "pvalue between", sampleA, "and", sampleB, "is", adonis_pvalue, sep=" "))
 		adonis_pvalue = paste(m, sampleA, sampleB, adonis_pvalue, sep="\t")
@@ -220,7 +221,7 @@ da_adonis = function(sampleV){
 # 3. 读取输入文件
 
 # 读取实验设计
-design = read.table("${design}", header=T, row.names=1, sep="\t", comment.char="")
+design = read.table("${design}", header=T, row.names=1, sep="\t")
 # 统一改实验列为group
 design\$group=design\$${g1}
 
@@ -256,6 +257,8 @@ for(m in method){
 	eig = pcoa\$eig
 	points = cbind(points, sub_design\$group)
 	colnames(points) = c("PC1", "PC2", "PC3", "PC4","group") 
+	write.table("Samples\t", file=paste("${output}", m, "14.txt",sep = ""), append = F, sep="\t", quote=F,  eol = "",row.names=F, col.names=F)
+	suppressWarnings(write.table(points[,c(1:4)], file=paste("${output}", m, "14.txt",sep = ""), append = T, sep="\t", quote=F, row.names=T, col.names=T))
 
 	# plot PC 1 and 2
 	p = ggplot(points, aes(x=PC1, y=PC2, color=group)) + geom_point(alpha=.7, size=2) +

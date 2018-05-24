@@ -19,6 +19,8 @@ fold_change=1.3
 abundance_threshold=0.0005
 width=4
 height=2.5
+# 读取差异OTUs文件的非数据行数，可以为1或12
+non_data_line=14
 
 # 脚本功能描述 Function for script description and usage
 usage()
@@ -62,6 +64,7 @@ OPTIONS:
 	-e execuate Rscript, default TRUE
 	-h figure height, default 8
 	-i OTU table in reads counts, default result/otutab.txt
+	-l non_data_line number, v2 is 14, v1 is 12
 	-m statistics method, default edgeR, alternative wilcon
 	-o output director, default result/tax/
 	-p pvaule, default 0.01
@@ -82,7 +85,7 @@ EOF
 
 
 # 参数解析 Analysis parameter
-while getopts "c:d:e:h:i:m:n:o:p:q:s:t:w:A:B:F:O:" OPTION
+while getopts "c:d:e:h:i:l:m:n:o:p:q:s:t:w:A:B:F:O:" OPTION
 do
 	case $OPTION in
 		c)
@@ -99,6 +102,9 @@ do
 			;;
 		i)
 			input=$OPTARG
+			;;
+		l)
+			non_data_line=$OPTARG
 			;;
 		m)
 			method=$OPTARG
@@ -172,7 +178,7 @@ cat <<END >script/plot_heatmap.R
 # - Save result table in *_all/sig.txt
 
 # 清空工作环境 Clean enviroment object
-rm(list=ls()) 
+rm(list=ls())
 
 
 # 2.1 安装CRAN来源常用包
@@ -213,13 +219,15 @@ for(p in package_list){
 
 # 读取比较列表
 input = read.table("${input}", header=T, row.names=1, sep="\t", comment.char="")
-input\$level=factor(input\$level,levels = c("Enriched","Depleted"))
+#input\$level=factor(input\$level,levels = c("Enriched","Depleted"))
 
 design = read.table("${design}", header=T, row.names=1, sep="\t", comment.char="")
 # 统一改实验列为group
 design\$group = design\$${g1}
 
-norm = input[,-(1:14)]
+norm = input[,-(1:${non_data_line})]
+
+if (dim(norm)[1]>1){
 
 idx = rownames(design) %in% colnames(norm)
 design = design[idx,]
@@ -252,7 +260,7 @@ pheatmap(norm,
 	fontsize=7,display_numbers=F)
 # 提示工作完成
 print(paste("Output in ${output}", "_heatmap.pdf finished.", sep = ""))
-
+}
 END
 
 

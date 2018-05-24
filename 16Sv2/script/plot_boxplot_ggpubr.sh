@@ -4,19 +4,18 @@
 set -e 
 
 # 默认参数 Default parameter
-design=doc/design.txt
-execute=TRUE
-height=5
 input=result/alpha/index.txt
 method='"chao1","richness","shannon_e"'
-normalization=FALSE
-output=result/alpha/
-size_text=7
-transposition=FALSE
-width=8 
+design=doc/design.txt
 g1=groupID
 g1_list=''
-figure_data=FALSE
+output=result/alpha/
+width=8 
+height=5
+text_size=7
+execute=TRUE
+transposition=FALSE
+normlizatation=FALSE
 
 # 脚本功能描述 Function for script description and usage
 usage()
@@ -24,13 +23,13 @@ usage()
 cat <<EOF >&2
 Usage:
 -------------------------------------------------------------------------------
-Filename:    alpha_boxplot.sh
-Version:     1.1
-Date:        2018/5/16
+Filename:    plot_boxplot_ggpubr.sh
+Version:     1.0
+Date:        2018/5/9
 Author:      Yong-Xin Liu
 Email:       metagenome@126.com
 Website:     https://blog.csdn.net/woodcorpse
-Description: Based on usearch alph_div, draw alpha boxplot and statistics, also can draw any matrix to boxplot by selected group and feature
+Description: Based on usearch alph_div, draw alpha boxplot and statistics 
 Notes:       Statistic alpha by aov and TukeyHSD
 -------------------------------------------------------------------------------
 Copyright:   2018 (c) Yong-Xin Liu
@@ -42,10 +41,6 @@ https://doi.org/10.1007/s11427-018-9284-4
 -------------------------------------------------------------------------------
 Version 1.0 2018/4/5
 Based on usearch alph_div and design, draw alpha boxplot and statistics.
-Version 1.1 2018/5/16
-transposition is fit OTU table (SampleID in colnames) as input; 
-normalization for raw reads count data; 
-figure_data for otuput raw data of boxplot
 
 # All input and output should be in default directory, or give relative or absolute path by -i/-d
 
@@ -64,33 +59,31 @@ GroupAr10	0.0635	0.00505 1206.1	0.981	0.707	77.7	151.0	29886.0 1205.0	0.294	0.01
 # Output file
 1. Alpha diversity boxplot: result/alpha/${method}.pdf/png, default method include chao1 richness shannon_e 
 2. Alpha diversity statisitcs: result/alpha/${method}.txt, aov statistics, TukeyHSD test, conf.level = 0.95
-2. Boxplot raw data: result/alpha/${method}_raw.txt, figure data, default not output
 
 OPTIONS:
-	-d design for each samples, default doc/design.txt 实验设计
-	-e execuate Rscript, default TRUE 执行R脚本
-	-h height of figure, default 5 图片宽：寸
-	-i index of alpha diversity, default result/alpha/index.txt 输入矩阵
-	-m method of index, default "chao1","richness","shannon_e"; alpha指数种类14种 "berger_parker","buzas_gibson","chao1","dominance","equitability","jost","jost1","reads","richness","robbins","simpson","shannon_e","shannon_2","shannon_10" 或选择特异Features：如OTUs，属，门，可多个
+	-d design for each samples, default doc/design.txt
+	-e execuate Rscript, default TRUE
+	-h figure height, default 5
+	-i alpha diversity index, default result/alpha/index.txt
+	-m index method, default "chao1","richness","shannon_e"; alpha指数种类14种 "berger_parker","buzas_gibson","chao1","dominance","equitability","jost","jost1","reads","richness","robbins","simpson","shannon_e","shannon_2","shannon_10"
 	-n normalization 是否自身标准化为百分比
-	-o output director, default result/alpha/ 输出目录
-	-s size_text, default 7 文字大小
 	-t transposition 是否转换，默认行样品列属性，OTU表需转置
-	-w width figure, default 8 图片宽
-	-A g1 - group name 实验设计中组列名
-	-B g1_list - group selected list, empty will not select 组选择，不添则使用全部
-	-F figure_data output in method_raw.txt, default FALSE 是否输出图和原始数据
-	-? show help of script 显示帮助
+	-o output director, default result/alpha/
+	-s text size, default 7
+	-w figure width, default 8
+	-A group name
+	-B group selected list, empty will not select
+	-? show help of script
 
 Example:
-alpha_boxplot.sh -i ${input} -m '${method}' -d ${design} -A ${g1} -B '${g1_list}' -o ${output} -w ${width} -h ${height}
+plot_boxplot_ggpubr.sh -i ${input} -m '${method}' -d ${design} -A ${g1} -B '${g1_list}' -o ${output} -w ${width} -h ${height}
 
 EOF
 }
 
 
 # 参数解析 Analysis parameter
-while getopts "d:e:h:i:m:n:o:s:t:w:A:B:F:" OPTION
+while getopts "d:e:h:i:m:n:o:s:t:w:A:B:" OPTION
 do
 	case $OPTION in
 		d)
@@ -109,13 +102,13 @@ do
 			method=$OPTARG
 			;;
 		n)
-			normalization=$OPTARG
+			normlizatation=$OPTARG
 			;;
 		o)
 			output=$OPTARG
 			;;
 		s)
-			size_text=$OPTARG
+			text_size=$OPTARG
 			;;
 		t)
 			transposition=$OPTARG
@@ -129,9 +122,6 @@ do
 		B)
 			g1_list=$OPTARG
 			select1=TRUE
-			;;
-		F)
-			figure_data=$OPTARG
 			;;
 		?)
 			usage
@@ -147,10 +137,9 @@ fi
 
 # 建立脚本目录
 mkdir -p script
-mkdir -p ${output}
 
 # 开始写R统计绘图脚本
-cat <<END >script/alpha_boxplot.R
+cat <<END >script/plot_boxplot_ggpubr.R
 #!/usr/bin/env Rscript
 # 
 # Copyright 2016-2018 Yong-Xin Liu <metagenome@126.com>
@@ -209,12 +198,6 @@ for(p in package_list){
 	}
 }
 
-# Set ggplot2 drawing parameter, such as axis line and text size, lengend and title size, and so on.
-main_theme = theme(panel.background=element_blank(), panel.grid=element_blank(),
-	axis.line.x=element_line(size=.5, colour="black"), axis.line.y=element_line(size=.5, colour="black"),
-	axis.ticks=element_line(color="black"), axis.text=element_text(color="black", size=${text_size}),
-	legend.position="right", legend.background=element_blank(), legend.key=element_blank(), legend.text= element_text(size=${text_size}),
-	text=element_text(family="sans", size=${text_size}))
 
 
 # 3. 读取输入文件
@@ -228,7 +211,7 @@ if ($transposition){
 }
 
 # 标准化数据矩阵
-if ($normalization){
+if ($normlizatation){
 	alpha = as.data.frame(alpha/rowSums(alpha,na=T) * 100) # normalization to 1000
 }
 # 读取实验设计
@@ -283,25 +266,28 @@ for(m in method){
 	rownames(y)=y\$group
 	index\$y=y[as.character(index\$group),]\$Max + (max-min)*0.05
 	
-# 输出原始数据，方便筛选 
-if (${figure_data}){
-	write.table(paste("SampleID\t", sep=""), file=paste("${output}",m,"_raw.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
-	suppressWarnings(write.table(index[,c(m,"group")], file=paste("${output}",m,"_raw.txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T))
-}
+	# 输出原始数据，方便筛选 
+#	write.table(paste("SampleID\t", sep=""), file=paste("${output}",m,"_raw.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
+#	write.table(index[,c(m,"group")], file=paste("${output}",m,"_raw.txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T)
+#
+#	p = ggplot(index, aes(x=group, y=index[[m]], color=group)) +
+#		geom_boxplot(alpha=1, outlier.size=0, size=0.7, width=0.5, fill="transparent") +
+#		labs(x="Groups", y=paste(m, "%")) + theme_classic() +
+#		geom_text(data=index, aes(x=group, y=y, color=group, label= stat)) +
+#		geom_jitter( position=position_jitter(0.17), size=1, alpha=0.7)
+#	if (length(unique(sub_design\$group))>5){
+#		p=p+theme(axis.text.x=element_text(angle=45,vjust=1, hjust=1))
+#	}
+#	p
+#	ggsave(paste("${output}", m, ".pdf", sep=""), p, width = $width, height = $height)
+#	ggsave(paste("${output}", m, ".png", sep=""), p, width = $width, height = $height)
 
-	p = ggplot(index, aes(x=group, y=index[[m]], color=group)) +
-		geom_boxplot(alpha=1, outlier.size=0, size=0.7, width=0.5, fill="transparent") +
-		labs(x="Groups", y=paste(m, "index")) + theme_classic() + main_theme +
-		geom_text(data=index, aes(x=group, y=y, color=group, label= stat)) +
-		geom_jitter( position=position_jitter(0.17), size=1, alpha=0.7)
-	if (length(unique(sub_design\$group))>3){
-		p=p+theme(axis.text.x=element_text(angle=45,vjust=1, hjust=1))
-	}
-
-
+	# 采用ggpubr添加统计的箱线图
+	library(ggpubr)
+	p = ggboxplot(index, x="group", y="index[[m]]", color="group", palette = "jco", add = "jitter") +stat_compare_means()
+	# 添加p-value, 默认是Wilcoxon test
 	p
-	ggsave(paste("${output}", m, ".pdf", sep=""), p, width = $width, height = $height)
-	ggsave(paste("${output}", m, ".png", sep=""), p, width = $width, height = $height)
+	ggsave(paste("${output}", "p_", m, ".pdf", sep=""), p, width = $width, height = $height)
 	# 提示工作完成
 	print(paste("Output in ${output}", m, ".txt/pdf finished.", sep = ""))
 }
@@ -313,5 +299,5 @@ END
 # 执行脚本，脚本运行目录即工作目录(与脚本位置无关)
 if test "${execute}" == "TRUE";
 then
-	Rscript script/alpha_boxplot.R
+	Rscript script/plot_boxplot_ggpubr.R
 fi

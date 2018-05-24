@@ -19,6 +19,8 @@ FDR=0.05
 fold_change=1.3
 abundance_threshold=0.0001
 taxonomy=result/taxonomy_8.txt
+# 矩阵自身标准化
+normalization=TRUE
 
 # 脚本功能描述 Function for script description and usage
 usage()
@@ -27,8 +29,8 @@ cat <<EOF >&2
 Usage:
 -------------------------------------------------------------------------------
 Filename:    compare.sh
-Version:     1.2
-Date:        2018/5/3
+Version:     1.3
+Date:        2018/5/24
 Author:      Yong-Xin Liu
 Email:       metagenome@126.com
 Website:     https://blog.csdn.net/woodcorpse
@@ -48,6 +50,8 @@ Version 1.1 2018/4/9
 Add wilcox rank test, select method in wilcox
 Version 1.2 2018/5/3
 Add taxonomy in result, reture taxonomy sorted result
+Version 1.3 2018/5/24
+Add matrix normalization paramter, default TRUE, can trun off
 
 
 # All input and output should be in default directory, or give relative or absolute path by -i/-d
@@ -94,7 +98,7 @@ EOF
 
 
 # 参数解析 Analysis parameter
-while getopts "c:d:e:h:i:m:n:o:p:q:s:t:w:A:B:F:O:" OPTION
+while getopts "c:d:e:h:i:m:n:o:p:q:s:t:w:A:B:F:O:N:" OPTION
 do
 	case $OPTION in
 		c)
@@ -144,10 +148,13 @@ do
 			select1=TRUE
 			;;
 		F)
-			foldchange=$OPTARG
+			fold_change=$OPTARG
 			;;
 		O)
 			order=$OPTARG
+			;;
+		N)
+			normalization=$OPTARG
 			;;
 		?)
 			usage
@@ -229,7 +236,7 @@ for(p in package_list){
 # 3. 读取输入文件
 
 # 读取实验设计
-design = read.table("${design}", header=T, row.names=1, sep="\t", comment.char="")
+design = read.table("${design}", header=T, row.names=1, sep="\t") # , comment.char=""
 # 统一改实验列为group
 design\$group = design\$${g1}
 
@@ -250,7 +257,11 @@ otutab = otutab[,rownames(design)]
 
 # 按丰度值按组中位数筛选OTU
 # 标准化为比例，并转置
-norm = t(otutab)/colSums(otutab,na=T)
+if (${normalization}){
+	norm = t(otutab)/colSums(otutab,na=T)
+}else{
+	norm=t(otutab)
+}
 # 筛选组信
 grp = design[, "group", drop=F]
 # 按行名合并
@@ -267,8 +278,8 @@ otutab = otutab[rownames(filtered),]
 
 # 生成compare的database用于注释
 mat_mean_high = mat_mean_final[rownames(filtered),]
-write.table(paste("OTUID\t",sep=""), file=paste("result/compare/", "database.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
-suppressWarnings(write.table(round(mat_mean_high*100,3), file=paste("result/compare/", "database.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
+write.table(paste("OTUID\t",sep=""), file=paste("${output}", "database.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
+suppressWarnings(write.table(round(mat_mean_high*100,3), file=paste("${output}", "database.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
 
 END
 
@@ -310,7 +321,11 @@ compare_DA = function(compare){
 
 	# Add MeanA and MeanB in percentage
 	# normlization to percentage
-	norm = t(t(sub_dat)/colSums(sub_dat,na=T))*100
+	if (${normalization}){
+		norm = t(t(sub_dat)/colSums(sub_dat,na=T))*100
+	}else{
+		norm = otutab
+	}
 	# check norm is right?
 	colSums(norm)
 	# calculate groupA mean
@@ -369,8 +384,11 @@ compare_DA = function(compare){
 
 	# wilcoxon秩合检验，需要先标准化
 	# normlization to percentage
-	sub_norm = t(t(sub_dat)/colSums(sub_dat,na=T))*100
-	
+	if (${normalization}){
+		sub_norm = t(t(sub_dat)/colSums(sub_dat,na=T))*100
+	}else{
+		norm = otutab
+	}
 	# 建立两组的矩阵
 	idx = sub_design\$group %in% group_list[1]
 	GroupA = sub_norm[,rownames(sub_design[idx,])]
@@ -422,7 +440,7 @@ compare_DA = function(compare){
 	output=cbind(nrDAO,Mean)
 
 	# write all OTU for volcano plot and manhattan plot
-	write.table(paste(SampAvsB, "\t",sep=""), file=paste("$output", SampAvsB, "_all.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
+	write.table(paste(group_list[1],"_", group_list[2], "\t",sep=""), file=paste("$output", SampAvsB, "_all.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
 	suppressWarnings(write.table(output,file=paste("$output", SampAvsB, "_all.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
 
 	# 计算上、下调OTUs数量，写入统计文件
@@ -433,14 +451,14 @@ compare_DA = function(compare){
 
 	output=output[output\$level!="NotSig",]
 	# 保存筛选结果于sig.txt结尾文件中
-	write.table(paste(SampAvsB, "\t",sep=""), file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
+	write.table(paste(group_list[1],"_", group_list[2], "\t",sep=""), file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
 	suppressWarnings(write.table(output, file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
 	
 	# 确保有差异才写入，否则会出不完整行
 	if (dim(output)[1]>1){
 	# 保存差异列表用于维恩图展示 save each group DA OTU list for venndiagram
-	# write.table(cbind(rownames(output),paste(SampAvsB, output\$level, sep=""), output\$PValue), file=paste("result/compare/otu", ".list", sep=""), append = TRUE, sep="\t", quote=F, row.names=F, col.names=F) # 使用edgeR中的比较-相连，无法当变量赋值，改为_
-	write.table(cbind(rownames(output),paste(group_list[1],"_", group_list[2], output\$level, sep="")), file=paste("result/compare/otu", ".list", sep=""), append = TRUE, sep="\t", quote=F, row.names=F, col.names=F)
+	# write.table(cbind(rownames(output),paste(SampAvsB, output\$level, sep=""), output\$PValue), file=paste("result/compare/otu", ".list", sep=""), append = TRUE, sep="\t", quote=F, row.names=F, col.names=F) # 使用edgeR中的比较-相连，无法作为变量赋值，改为_
+	write.table(cbind(rownames(output),paste(group_list[1],"_", group_list[2], output\$level, sep="")), file=paste("${output}/diff", ".list", sep=""), append = TRUE, sep="\t", quote=F, row.names=F, col.names=F)
 	}
 }
 
@@ -482,7 +500,7 @@ END
 if test "${execute}" == "TRUE";
 then
 	mkdir -p ${output}
-	rm -f result/compare/otu.list
+	rm -f ${output}/diff.list
 	Rscript script/compare.R
-	sed -i 's/Enriched/_E/;s/Depleted/_D/' result/compare/otu.list
+	sed -i 's/Enriched/_E/;s/Depleted/_D/' ${output}/diff.list
 fi

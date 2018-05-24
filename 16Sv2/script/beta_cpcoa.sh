@@ -134,6 +134,7 @@ fi
 
 # 建立脚本目录
 mkdir -p script
+mkdir -p ${output}
 
 # 开始写R统计绘图脚本
 cat <<END >script/beta_cpcoa.R
@@ -196,11 +197,18 @@ for(p in package_list){
 	}
 }
 
+# Set ggplot2 drawing parameter, such as axis line and text size, lengend and title size, and so on.
+main_theme = theme(panel.background=element_blank(), panel.grid=element_blank(),
+	axis.line.x=element_line(size=.5, colour="black"), axis.line.y=element_line(size=.5, colour="black"),
+	axis.ticks=element_line(color="black"), axis.text=element_text(color="black", size=${text_size}),
+	legend.position="right", legend.background=element_blank(), legend.key=element_blank(), legend.text= element_text(size=${text_size}),
+	text=element_text(family="sans", size=${text_size}))
+
 
 # 3. 读取输入文件
 
 # 读取实验设计
-design = read.table("${design}", header=T, row.names=1, sep="\t", comment.char="")
+design = read.table("${design}", header=T, row.names=1, sep="\t")
 # 统一改实验列为group
 design\$group=design\$${g1}
 
@@ -261,7 +269,7 @@ for(m in method){
 		labs(x=paste("CPCoA 1 (", format(100 * eig[1] / sum(eig), digits=4), "%)", sep=""),
 		y=paste("CPCoA 2 (", format(100 * eig[2] / sum(eig), digits=4), "%)", sep="")) + 
 		ggtitle(paste(format(100 * variance, digits=3), " % of variance; p=",format(p.val, digits=2),sep="")) + 
-		theme_classic()
+		theme_classic() + main_theme
 
 	# 是否添加置信椭圆
 	if (${ellipse}){

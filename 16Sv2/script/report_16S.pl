@@ -213,237 +213,174 @@ while (<DATABASE>) {
 close DATABASE;
 
 
-#@tax_en=qw#phylum class order family genus#;
-#@tax_cn=qw#门 纲 目 科 属#;
-#
-#open OUTPUT,">$opts{o}04-e-taxonomy.Rmd";
+@tax_en=qw#p c o f g#;
+@tax_cn=qw#门 纲 目 科 属#;
+
+open OUTPUT,">$opts{o}2a-taxonomy.Rmd";
+print OUTPUT qq!
+
+# 生物分类学 Taxonomy {#result-taxonomy}
+
+!;
+
+foreach $i (0..4) {
+
+# 开启精简模式，只输出门、目、属水平差异，纲、科跳过
+if ($opts{S} eq "TRUE") {
+	next if $i==1;
+	next if $i==3;
+}
+
+print OUTPUT qq!
+## $tax_cn[$i]水平差异 {#result-taxonomy-$tax_en[$i]}
+
+(ref:taxonomy-$tax_en[$i]) 柱状图展示各样品组微生物组分类学$tax_cn[$i]水平相对丰度。(A) 堆叠柱状图展示各样品相对丰度。(B) 堆叠柱状图展示各组平均相对丰度，X轴为各样品组，Y轴为各$tax_cn[$i]类相对百分比，只列出了丰度大于0.1%的$tax_cn[$i]，其它所有$tax_cn[$i]归入Low Abundance类。(C) 条形图展示最高丰度的五大菌$tax_cn[$i]平均丰度及标准误，我们可以观察各样品组$tax_cn[$i]水平上相关丰度的差异及组内生物学重复间的波动范围。[stack sample PDF](result/tax/sum_$tax_en[$i]_sample.pdf)  [stack group PDF](result/tax/sum_$tax_en[$i]_group.pdf)  [raw Data](result/tax/sum_$tax_en[$i].txt)
+
+```{r taxonomy-$tax_en[$i], fig.cap="(ref:taxonomy-$tax_en[$i])", out.width="99%"}
+figs_2 = paste0("result/tax/sum_$tax_en[$i]_", c("sample","group"),".png")
+knitr::include_graphics(figs_2)
+```
+!;
+foreach (@group) {
+	chomp;
+	my @tmp=split/\t/; # sampleA and sampleB
+$file = "result/compare_$tax_en[$i]/$tmp[0]-$tmp[1]_sig.txt";
+
+if (-e $file) {
+print OUTPUT qq!
+### $tmp[0] vs $tmp[1]
+
+$tmp[0]与$tmp[1]相比显著差异的分类单元信息如 Table \\\@ref(tab:taxonomy-$tmp[0]vs$tmp[1]-$tax_en[$i]) 所示。[All TXT](result/compare_$tax_en[$i]/$tmp[0]-$tmp[1]_all.txt) [Significant TXT](result/compare_$tax_en[$i]/$tmp[0]-$tmp[1]_sig.txt)
+
+```{r taxonomy-$tmp[0]vs$tmp[1]-$tax_en[$i]}
+m = read.table("result/compare_$tax_en[$i]/$tmp[0]-$tmp[1]_sig.txt", sep="\\t", header=T, row.names = 1)
+e = m[m\$logFC>0,]
+e = head(e[order(-e\$MeanA),],n=10)
+d = m[m\$logFC<0,]
+d = head(d[order(-d\$MeanB),],n=10)
+m = rbind(e,d)
+m=m[,c("MeanA","MeanB","logFC","PValue","FDR")]
+knitr::kable(m, row.names=T, caption="$tmp[0]与$tmp[1]显著差异的$tax_cn[$i]", booktabs=TRUE)
+```
+
+!;
+}else{
+print OUTPUT qq!
+### $tmp[0] vs $tmp[1]
+
+无显著差异丰度分类单元；No significantlly differentially abundance taxonomy.
+
+!;
+}
+}
+
+# 维恩图
+if (-e "$opts{v}") {
+open DATABASE,"<$opts{v}";
+my @venn;
+while (<DATABASE>) {
+	chomp;
+	push @venn,$_;
+}
+close DATABASE;
+
+
+## 如果venn非空，读列表文件
+if (@venn>=1) {
+print OUTPUT qq!
+### $tax_cn[$i]维恩图  {#result-$tax_en[$i]-venn}
+
+!;
+
+my $j=0;
+foreach (@venn) {
+	chomp;
+	$j++;
+	my @tmp=split/\t/; # sampleA and sampleB
+	my $venn_list2;
+	foreach $tmp (@tmp) {
+		$venn_list2.=$tmp;
+	}
+	$tmp[2]="C" unless defined($tmp[2]);
+	$tmp[3]="D" unless defined($tmp[3]);
+	$tmp[4]="E" unless defined($tmp[4]);
+	$venn_list="$tmp[0]$tmp[1]$tmp[2]$tmp[3]$tmp[4]";
+
+# 判断是否有维恩图，再输出
+$file = "result/compare_$tax_en[$i]/diff.list.venn$venn_list.pdf";
+if (-e $file) {
+print OUTPUT qq!
+
+#### $venn_list
+
+(ref:$tax_en[$i]-venn-$j) 维恩图展示各比较组差异$tax_cn[$i]水平共有和特有数量。Venn diagrams show common and unique OTUs in each group. [PDF](result/compare_$tax_en[$i]/diff.list.venn$venn_list.pdf) [TXT](result/compare_$tax_en[$i]/diff.list.venn$venn_list2.xls.xls)  
+
+
+```{r $tax_en[$i]-venn-$j, fig.cap="(ref:$tax_en[$i]-venn-$j)", out.width="99%"}
+figs_2 = paste0("result/compare_$tax_en[$i]/diff.list.venn", "$venn_list", ".png")
+knitr::include_graphics(figs_2)
+```
+
+!;
+}
+}
+}
+}
+
+}
+
+
+
+
+
+#open OUTPUT,">$opts{o}2b-taxonomy.Rmd";
 #print OUTPUT qq!
+## 目差异分析 {#result-o}
 #
-## 高分类级别差异Different Taxonomy {#result-taxonomy}
+### 差异目概述 {#result-o-sum}
 #
-### 差异分类学单元数量Different taxonomy summary 
+#样品组间显著差异目数量(P < 0.001, FDR < 0.05，统计方法为$opts{m})如 Table \\\@ref(tab:o-sum) 所示。[TXT](result/compare_o/summary.txt)；
 #
-#样品组在不同分类级别上显著差异分类单元数量。Different taxonomy unit under each level (Pvalue < 0.05, FDR < 0.05)如 Table \\\@ref(tab:taxonomy-sum) 所示。[TXT](result_k1-c/tax_sum.txt)
-#
-#```{r taxonomy-sum}
-#table_taxonomy = read.table("result_k1-c/tax_sum.txt", sep="\t", header=T)
-#knitr::kable(table_taxonomy, caption="样品组显著差异taxonomy数量", booktabs=TRUE)
+#```{r o-sum}
+#table_o = read.table("result/compare_o/summary.txt", sep="\t", header=T)
+#knitr::kable(table_o, caption="各样品组间差异目数量汇总", booktabs=TRUE)
 #```
 #
 #!;
-#
-#foreach $i (0..4) {
-#
-## 开启精简模式，只输入门、目、属水平差异，纲、科跳过
-#if ($opts{S} eq "TRUE") {
-#	next if $i==1;
-#	next if $i==3;
-##	next if $i==4;
-#}
-#
-#print OUTPUT qq!
-### $tax_cn[$i]水平组间差异$tax_en[$i] {#result-taxonomy-$tax_en[$i]}
-#
-#(ref:taxonomy-$tax_en[$i]) 柱状图展示各样品组微生物组分类学$tax_cn[$i]水平相对丰度。(A) 堆叠柱状图展示各样品相对丰度。(B) 堆叠柱状图展示各组平均相对丰度，X轴为各样品组，Y轴为各$tax_cn[$i]类相对百分比，只列出了丰度大于0.1%的$tax_cn[$i]，其它所有$tax_cn[$i]归入Low Abundance类。(C) 条形图展示最高丰度的五大菌$tax_cn[$i]平均丰度及标准误，我们可以观察各样品组$tax_cn[$i]水平上相关丰度的差异及组内生物学重复间的波动范围。
-#Bar plot showing $tax_en[$i] abundances in each genotype. (A) Stack plot showing high abundance (>0.1%) $tax_en[$i] in each sample;  (B) Stack plot showing high abundance (>0.1%) $tax_en[$i] in each group; (C) Bar plot showing top 5 $tax_en[$i] abundance and error bar in each genotype.  [stack sample PDF](result_k1-c/tax_stack_$tax_en[$i]_sample.pdf)  [stack group PDF](result_k1-c/tax_stack_$tax_en[$i]_top9.pdf)  [bar PDF](result_k1-c/tax_bar_$tax_en[$i]_top5.pdf) [raw Data](result_k1-c/database_$tax_en[$i].txt)
-#
-#```{r taxonomy-$tax_en[$i], fig.cap="(ref:taxonomy-$tax_en[$i])", out.width="99%"}
-##figs_2 = paste0("result_k1-c/tax_", c("stack_$tax_en[$i]_top9", "bar_$tax_en[$i]_top5"),".png")
-#if ($opts{S}) {figs_2 = paste0("result_k1-c/tax_", c("stack_$tax_en[$i]_sample","stack_$tax_en[$i]_top9"),".png")
-#}else{figs_2 = paste0("result_k1-c/tax_", c("stack_$tax_en[$i]_sample","stack_$tax_en[$i]_top9", "bar_$tax_en[$i]_top5"),".png")}
-#knitr::include_graphics(figs_2)
-#```
-#!;
+#my $i=0;
 #foreach (@group) {
 #	chomp;
 #	my @tmp=split/\t/; # sampleA and sampleB
-#$file = "result_k1-c/heat_$tax_en[$i]_$tmp[0]vs$tmp[1]_sig.pdf";
-##print -e $file,"\n"; # 不存在为uninitialized，存在返回1
+#	$i++;
 #
-#
-#if (-e $file) {
-#	`sed ':a;N;\$!ba;s/^/ID\\t/g' result_k1-c/$tax_en[$i]_$tmp[0]vs$tmp[1]_enriched.txt > result_k1-c/$tax_en[$i]_$tmp[0]vs$tmp[1]_enriched.xls`;
-#	`sed ':a;N;\$!ba;s/^/ID\\t/g' result_k1-c/$tax_en[$i]_$tmp[0]vs$tmp[1]_depleted.txt > result_k1-c/$tax_en[$i]_$tmp[0]vs$tmp[1]_depleted.xls`;
 #print OUTPUT qq!
-#### $tmp[0] vs $tmp[1]
 #
-#$tmp[0]与$tmp[1]相比显著差异的分类单元信息如 Table \\\@ref(tab:taxonomy-$tmp[0]vs$tmp[1]-$tax_en[$i]) 所示。[Enriched TXT](result_k1-c/$tax_en[$i]_$tmp[0]vs$tmp[1]_enriched.xls)  [Depleted TXT](result_k1-c/$tax_en[$i]_$tmp[0]vs$tmp[1]_depleted.xls)
+### $tmp[0] vs $tmp[1]
 #
-#```{r taxonomy-$tmp[0]vs$tmp[1]-$tax_en[$i]}
-#e = read.table("result_k1-c/$tax_en[$i]_$tmp[0]vs$tmp[1]_enriched.xls", sep="\t", header=T)
-#e = head(e[order(-e\$A_mean),],n=10)
-#d = read.table("result_k1-c/$tax_en[$i]_$tmp[0]vs$tmp[1]_depleted.xls", sep="\t", header=T)
-#d = head(d[order(-d\$B_mean),],n=10)
+#(ref:o-$i) $tmp[0] vs $tmp[1]组间相对丰度显著差异目 (Pvalue < 0.001 & FDR < 0.05, GLM likelihood rate test(edgeR), or wilcoxon rank test)。(A) 火山图展示两组比较目的变化，x轴为o差异倍数取以2为底的对数，y轴为取丰度值百万比取2为底的对数，红蓝分别代表显著上下调，灰为没有显著变化的目；(B) 热图展示$tmp[0]与$tmp[1]显著差异o在每个样品中丰度值，数据采用Z-Score方法进行标准化，红色代表丰度相对高，而绿色代表丰度相对低，黄色代表中间水平；(C) 曼哈顿图展示o的变化情况及在各门水平中的分布，x轴为o按物种门水平物种注释字母排序，y轴为Pvalue值取自然对数，虚线为采用FDR校正的P-value的显著性阈值，图中每个点代表o，颜色为门水平注释，大小为相对丰度，形状为变化类型，其中上实心三角为显著上调，而下空心三角为显著下调；(D) 曼哈顿图按目水平上色。
+#$tmp[0] are enriched and depleted for certain 目 (P & FDR < 0.05, GLM likelihood rate test). (A) Volcano plot overview of abundance and fold change of 目; (B) Heatmap showing differentially abundance 目; (C) Manhattan plot showing phylum pattern of differentially abundance 目, colored by phylum; (D) Manhattan plot colored by order.
+#[Heatmap](result/compare_o/$tmp[0]-$tmp[1]_heatmap.pdf)
+#
+#```{r o-$i, fig.cap="(ref:o-$i)", out.width="99%"}
+#figs = paste0("result/compare_o/$tmp[0]-$tmp[1]_", c("heatmap"),".png")
+#knitr::include_graphics(figs)
+#```
+#
+#$tmp[0]与$tmp[1]相比显著差异的目。A_mean, B_mean分别为各组内相对丰度均值的百分比(%)，如 Table \\\@ref(tab:tab-o-$i) 所示。[All](result/compare_o/$tmp[0]-$tmp[1]_all.txt)  [Significant](result/compare_o/$tmp[0]-$tmp[1]_sig.txt)
+#
+#```{r tab-o-$i}
+#m = read.table("result/compare_o/$tmp[0]-$tmp[1]_sig.txt", sep="\\t", header=T, row.names = 1)
+#e = m[m\$logFC>0,]
+#e = head(e[order(-e\$MeanA),],n=10)
+#d = m[m\$logFC<0,]
+#d = head(d[order(-d\$MeanB),],n=10)
 #m = rbind(e,d)
-#knitr::kable(m,row.names=F, caption="样品组$tmp[0] vs $tmp[1]显著差异$tax_cn[$i]前10行；Significantlly different $tax_en[$i].", booktabs=TRUE)
-#```
-#
-#(ref:taxonomy-$tax_en[$i]-$tmp[0]vs$tmp[1]) 热图展示$tmp[0]vs$tmp[1]在$tax_cn[$i]水平差异分类单元。Heatmap show differentially abundance $tax_en[$i].[PDF](result_k1-c/heat_$tax_en[$i]_$tmp[0]vs$tmp[1]_sig.pdf)
-#
-#```{r taxonomy-$tax_en[$i]-$tmp[0]vs$tmp[1], fig.cap="(ref:taxonomy-$tax_en[$i]-$tmp[0]vs$tmp[1])", out.width="99%"}
-#knitr::include_graphics("result_k1-c/heat_$tax_en[$i]_$tmp[0]vs$tmp[1]_sig.png")
-#```
-#
-#!;
-#}else{
-#print OUTPUT qq!
-#### $tmp[0] vs $tmp[1]
-#
-#无显著差异丰度分类单元；No significantlly differentially abundance taxonomy.
-#
-#!;
-#}
-#}
-#
-#}
-#
-#
-#
-## phylum + proteobacteria class
-#print OUTPUT qq!
-### 门及变形菌纲差异 Phylum and class of Proteobacteria  {#result-taxonomy-phylumpro}
-#
-#(ref:taxonomy-phylumpro) 堆叠柱状图和冲击图展示各样品组微生物组分类学门及变形菌纲水平相对丰度。(A) 堆叠柱状图展示各组平均相对丰度，X轴为各样品组，Y轴为各门及变形菌纲类相对百分比，只列出了丰度大于0.1%的门及变形菌纲，其它所有门及变形菌纲归入Low Abundance类。(B) 叠柱状图展示各样品相对丰度，我们可以观察各组内样品间的波动情况，又可以看到组间差异。
-#Stackplot and alluvium diagram showing phylumpro abundances in each genotype. (A) Stack plot showing high abundance (>0.1%) phylumpro; (B) Stack plot showing high abundance (>0.1%) phylumpro in each sample. [stack PDF](result_k1-c/tax_stack_phylumpro_abc.pdf) [alluvium PDF](result_k1-c/tax_alluvium_phylumpro.pdf) [stack sample PDF](result_k1-c/tax_stack_phylumpro_sample.pdf)  [raw Data](result_k1-c/database_phylumpro.txt)
-#
-#```{r taxonomy-phylumpro, fig.cap="(ref:taxonomy-phylumpro)", out.width="99%"}
-##figs_2 = paste0("result_k1-c/tax_", c("stack_phylumpro_abc", "stack_phylumpro_sample"),".png")
-#if ($opts{S}) {figs_2 = paste0("result_k1-c/tax_", c("stack_phylumpro_abc","alluvium_phylumpro"),".png")
-#}else{figs_2 = paste0("result_k1-c/tax_", c("stack_phylumpro_abc", "stack_phylumpro_sample"),".png")}
-#knitr::include_graphics(figs_2)
-#```
-#!;
-#foreach (@group) {
-#	chomp;
-#	my @tmp=split/\t/; # sampleA and sampleB
-#$file = "result_k1-c/heat_phylumpro_$tmp[0]vs$tmp[1]_sig.pdf";
-##print -e $file,"\n"; # 不存在为uninitialized，存在返回1
-#
-#
-#if (-e $file) {
-#	`sed ':a;N;\$!ba;s/^/ID\\t/g' result_k1-c/phylumpro_$tmp[0]vs$tmp[1]_enriched.txt > result_k1-c/phylumpro_$tmp[0]vs$tmp[1]_enriched.xls`;
-#	`sed ':a;N;\$!ba;s/^/ID\\t/g' result_k1-c/phylumpro_$tmp[0]vs$tmp[1]_depleted.txt > result_k1-c/phylumpro_$tmp[0]vs$tmp[1]_depleted.xls`;
-#print OUTPUT qq!
-#### $tmp[0] vs $tmp[1]
-#
-#$tmp[0]与$tmp[1]相比显著差异的分类单元信息如 Table \\\@ref(tab:taxonomy-$tmp[0]vs$tmp[1]-phylumpro) 所示。[Enriched TXT](result_k1-c/phylumpro_$tmp[0]vs$tmp[1]_enriched.xls)  [Depleted TXT](result_k1-c/phylumpro_$tmp[0]vs$tmp[1]_depleted.xls)
-#
-#```{r taxonomy-$tmp[0]vs$tmp[1]-phylumpro}
-#table_taxonomy_e = read.table("result_k1-c/phylumpro_$tmp[0]vs$tmp[1]_enriched.xls", sep="\t", header=T)
-#table_taxonomy_d = read.table("result_k1-c/phylumpro_$tmp[0]vs$tmp[1]_depleted.xls", sep="\t", header=T)
-#table_taxonomy_merge = rbind(table_taxonomy_e,table_taxonomy_d)
-#table_taxonomy = head(table_taxonomy_merge,n=10)
-#knitr::kable(table_taxonomy, caption="样品组$tmp[0] vs $tmp[1]显著差异门及变形菌纲前10行；Significantlly different phylumpro.", booktabs=TRUE)
-#```
-#
-#(ref:taxonomy-phylumpro-$tmp[0]vs$tmp[1]) 热图展示$tmp[0]vs$tmp[1]在门及变形菌纲水平差异分类单元。Heatmap show differentially abundance phylumpro.[PDF](result_k1-c/heat_phylumpro_$tmp[0]vs$tmp[1]_sig.pdf)
-#
-#```{r taxonomy-phylumpro-$tmp[0]vs$tmp[1], fig.cap="(ref:taxonomy-phylumpro-$tmp[0]vs$tmp[1])", out.width="99%"}
-#knitr::include_graphics("result_k1-c/heat_phylumpro_$tmp[0]vs$tmp[1]_sig.png")
-#```
-#
-#!;
-#}else{
-#print OUTPUT qq!
-#### $tmp[0] vs $tmp[1]
-#
-#无显著差异丰度分类单元；No significantlly differentially abundance taxonomy.
-#
-#!;
-#}
-#}
-
-
-
-
-#if (@venn>=1) {
-#print OUTPUT qq!
-### 组间共有目Venn order {#result-order-venn}
-#
-#!;
-#
-#$i=0;
-#foreach (@venn) {
-#	chomp;
-#	$i++;
-#
-#print OUTPUT qq!
-#
-#### $venn_list
-#
-#(ref:order-venn-$i) 维恩图展示各比较组差异OTU的共有和特有数量。Venn diagrams show common and unique OTUs in each group. [Figure PDF](result_k1-c/order.txt.venn$venn_list.pdf)  [List XLS](result_k1-c/order.txt.venn$venn_list2.xls)  [Detail XLSX](result_k1-c/order.txt.venn$venn_list2.xls.xls)  
-#
-#
-#```{r order-venn-$i, fig.cap="(ref:order-venn-$i)", out.width="99%"}
-#figs_2 = paste0("result_k1-c/order.txt.venn", "$venn_list", ".png")
-#knitr::include_graphics(figs_2)
+#m=m[,c("MeanA","MeanB","logFC","PValue","FDR")]
+#knitr::kable(m, row.names=T, caption="$tmp[0]与$tmp[1]显著差异的目；Significantlly different 目.", booktabs=TRUE)
 #```
 #
 #!;
 #}
-#
-#print OUTPUT qq!
-### 组间共有科Venn family  {#result-family-venn}
-#
-#!;
-#$i=0;
-#foreach (@venn) {
-#	chomp;
-#	$i++;
-#	my @tmp=split/\t/; # sampleA and sampleB
-#	my $venn_list2;
-#	foreach $tmp (@tmp) {
-#		$venn_list2.=$tmp;
-#	}
-#	$tmp[2]="C" unless defined($tmp[2]);
-#	$tmp[3]="D" unless defined($tmp[3]);
-#	$tmp[4]="E" unless defined($tmp[4]);
-#	$venn_list="$tmp[0]$tmp[1]$tmp[2]$tmp[3]$tmp[4]";
-#
-#print OUTPUT qq!
-#
-#### $venn_list
-#
-#(ref:family-venn-$i) 维恩图展示各比较组差异OTU的共有和特有数量。Venn diagrams show common and unique OTUs in each group. [Figure PDF](result_k1-c/family.txt.venn$venn_list.pdf)  [List XLS](result_k1-c/family.txt.venn$venn_list2.xls)  [Detail XLSX](result_k1-c/family.txt.venn$venn_list2.xls.xls)  
-#
-#
-#```{r family-venn-$i, fig.cap="(ref:family-venn-$i)", out.width="99%"}
-#figs_2 = paste0("result_k1-c/family.txt.venn", "$venn_list", ".png")
-#knitr::include_graphics(figs_2)
-#```
-#
-#!;
-#}
-#}
-#}
-#print OUTPUT qq!
-### 组间差异科分类学样式Pie family {#result-family-pie}
-#
-#(ref:family-pie) 比较组间差异科的门水平分类学样式。饼形图展示各种差异科细菌门水平分类比例。中间数字为所有显著差异科的数目，第一列为显著上调的科，第二列为显著下调的科，从上到下为各比较组。Pie charts show phylum of bacterial familys identified as either enriched or depleted in each genotype compared with WT. The number of familys in each category is noted inside each donut. !;
-#
-#foreach (@group) {
-#	chomp;
-#	my @tmp=split/\t/; # sampleA and sampleB
-#print OUTPUT qq!
-#[$tmp[0]vs$tmp[1] enriched pie PDF](result_k1-c/pie_family_$tmp[0]vs$tmp[1]_enriched.pdf) 
-#[$tmp[0]vs$tmp[1] depleted pie PDF](result_k1-c/pie_family_$tmp[0]vs$tmp[1]_depleted.pdf) !;
-#$pie_list.="\"$tmp[0]vs$tmp[1]_enriched\"\, \"$tmp[0]vs$tmp[1]_depleted\"\, ";
-#}
-#$pie_list=~s/\,\ $//;
-#
-#print OUTPUT qq!
-#
-#```{r family-pie, fig.cap="(ref:family-pie)", out.width="49%"}
-#figs_2 = paste0("result_k1-c/pie_family_", c(${pie_list}),".png")
-#knitr::include_graphics(figs_2)
-#```
-#
-#!;
-#
-#
-#close OUTPUT;
-
-
 
 open OUTPUT,">$opts{o}2c-compare.Rmd";
 print OUTPUT qq!
@@ -454,7 +391,7 @@ print OUTPUT qq!
 样品组间显著差异OTUs数量(P < 0.001, FDR < 0.05，统计方法为$opts{m})如 Table \\\@ref(tab:otu-sum) 所示。[TXT](result/compare/summary.txt)；
 
 ```{r otu-sum}
-table_otu = read.table("result/compare/summary.txt", sep="\t", header=T)
+table_otu = read.table("result/compare/summary.txt", sep="\\t", header=T)
 knitr::kable(table_otu, caption="各样品组间差异OTUs数量汇总", booktabs=TRUE)
 ```
 
@@ -464,14 +401,6 @@ foreach (@group) {
 	chomp;
 	my @tmp=split/\t/; # sampleA and sampleB
 	$i++;
-#	`cp -f result_k1-c/otu_$tmp[0]vs$tmp[1]_enriched.txt result_k1-c/otu_$tmp[0]vs$tmp[1]_enriched.xls`;
-#	`cp -f result_k1-c/otu_$tmp[0]vs$tmp[1]_depleted.txt result_k1-c/otu_$tmp[0]vs$tmp[1]_depleted.xls`;
-#	# 如果存在培养注释，添加差异OTU最后列培养菌对应ID、相似度
-#	$file = "result/otu_cultured.txt";
-#	if (-e $file) {
-#		`awk 'BEGIN{OFS=FS="\\t"} NR==FNR {a[\$1]=\$2"\\t"\$3} NR>FNR {print \$0,a[\$1]}' result/otu_cultured.txt result_k1-c/otu_$tmp[0]vs$tmp[1]_enriched.txt > result_k1-c/otu_$tmp[0]vs$tmp[1]_enriched.xls`;
-#		`awk 'BEGIN{OFS=FS="\\t"} NR==FNR {a[\$1]=\$2"\\t"\$3} NR>FNR {print \$0,a[\$1]}' result/otu_cultured.txt result_k1-c/otu_$tmp[0]vs$tmp[1]_depleted.txt >  result_k1-c/otu_$tmp[0]vs$tmp[1]_depleted.xls`;
-#	}
 
 print OUTPUT qq!
 
@@ -489,7 +418,7 @@ knitr::include_graphics(figs)
 $tmp[0]与$tmp[1]相比显著差异的OTUs。A_mean, B_mean分别为各组内相对丰度均值的百分比(%)，如 Table \\\@ref(tab:tab-otu-$i) 所示。[All](result/compare/$tmp[0]-$tmp[1]_all.txt)  [Significant](result/compare/$tmp[0]-$tmp[1]_sig.txt)
 
 ```{r tab-otu-$i}
-m = read.table("result/compare/$tmp[0]-$tmp[1]_sig.txt", sep="\t", header=T, row.names = 1)
+m = read.table("result/compare/$tmp[0]-$tmp[1]_sig.txt", sep="\\t", header=T, row.names = 1)
 e = m[m\$logFC>0,]
 e = head(e[order(-e\$MeanA),],n=10)
 d = m[m\$logFC<0,]
@@ -522,10 +451,10 @@ print OUTPUT qq!
 
 !;
 
-my $i=0;
+my $j=0;
 foreach (@venn) {
 	chomp;
-	$i++;
+	$j++;
 	my @tmp=split/\t/; # sampleA and sampleB
 	my $venn_list2;
 	foreach $tmp (@tmp) {
@@ -540,11 +469,11 @@ print OUTPUT qq!
 
 ### $venn_list
 
-(ref:otu-venn-$i) 维恩图展示各比较组差异OTU的共有和特有数量。Venn diagrams show common and unique OTUs in each group. [PDF](result/compare/otu.list.venn$venn_list.pdf) [TXT](result/compare/otu.list.venn$venn_list2.xls.xls)  
+(ref:otu-venn-$j) 维恩图展示各比较组差异OTU的共有和特有数量。Venn diagrams show common and unique OTUs in each group. [PDF](result/compare/diff.list.venn$venn_list.pdf) [TXT](result/compare/diff.list.venn$venn_list2.xls.xls)  
 
 
-```{r otu-venn-$i, fig.cap="(ref:otu-venn-$i)", out.width="99%"}
-figs_2 = paste0("result/compare/otu.list.venn", "$venn_list", ".png")
+```{r otu-venn-$j, fig.cap="(ref:otu-venn-$j)", out.width="99%"}
+figs_2 = paste0("result/compare/diff.list.venn", "$venn_list", ".png")
 knitr::include_graphics(figs_2)
 ```
 
@@ -552,44 +481,6 @@ knitr::include_graphics(figs_2)
 }
 }
 }
-
-
-#if (-e "$opts{t}") {
-#print OUTPUT qq!
-### 三元图Ternary 
-#
-#三元图中各部分高亮OTU数量统计信息如 Table \\\@ref(tab:ter-sum) 所示。[Summary table](result_k1-c/ter_sum.txt)
-#
-#```{r ter-sum}
-#tab = read.table("result_k1-c/ter_sum.txt", sep="\\t", header=T)
-#knitr::kable(tab, caption="三元图中各部分高亮OTU数量统计", booktabs=TRUE)
-#```
-#!;
-#
-#open DATABASE,"<$opts{t}";
-#while (<DATABASE>) {
-#	chomp;
-#	@tmp=split/\t/;;
-#	foreach (@tmp) {
-#	`sed ':a;N;\$!ba;s/^/ID\\t/g' result_k1-c/ter_$tmp[0]$tmp[1]$tmp[2]$_.txt > result_k1-c/ter_$tmp[0]$tmp[1]$tmp[2]$_.xls` if -e "result_k1-c/ter_$tmp[0]$tmp[1]$tmp[2]$_.txt";
-#	`sed ':a;N;\$!ba;s/^/ID\\t/g' result_k1-c/ter_$tmp[0]$tmp[1]$tmp[2]${_}venn.txt > result_k1-c/ter_$tmp[0]$tmp[1]$tmp[2]${_}venn.xls` if -e "result_k1-c/ter_$tmp[0]$tmp[1]$tmp[2]${_}venn.txt";
-#	}
-#print OUTPUT qq!
-#### $tmp[0] vs $tmp[1] vs $tmp[2]
-#
-#(ref:ter-$tmp[0]$tmp[1]$tmp[2]) 三元图展示$tmp[0]、$tmp[1]、和$tmp[2]三组OTU(>1‰)的相对丰度。(A) 各组相对于另外两组显著差异的OTU  [PDF](result_k1-c/ter_$tmp[0]$tmp[1]$tmp[2].pdf)。每个点代表一个OTU，位置代表它在各组间的相对比例，大小代表三组的平均丰度。彩色的圆圈代表每组中相对于其它两组显著富集的OTU，位于三角形[左$tmp[0]](result_k1-c/ter_$tmp[0]$tmp[1]$tmp[2]$tmp[0].xls)、[右$tmp[1]](result_k1-c/ter_$tmp[0]$tmp[1]$tmp[2]$tmp[1].xls)和[顶$tmp[2]](result_k1-c/ter_$tmp[0]$tmp[1]$tmp[2]$tmp[2].xls)组所特异显著富集的OTU，分别用绿、橙和红高亮显示；
-#(B) 三角形左$tmp[0]、右$tmp[1]相对于顶$tmp[2] 组富集的OTU  [PDF](result_k1-c/ter_$tmp[0]$tmp[1]$tmp[2]venn.pdf)。图中底部[两组共有显著富集OTU用红色显示](result_k1-c/ter_$tmp[0]$tmp[1]$tmp[2]$tmp[2]venn.xls)，[左$tmp[0]特异的OTU分别用绿色显示](result_k1-c/ter_$tmp[0]$tmp[1]$tmp[2]$tmp[0]venn.xls)，[右组特异显示为橙色](result_k1-c/ter_$tmp[0]$tmp[1]$tmp[2]$tmp[1].xls)。
-#Ternary plot depicting group relative abundances (RAs) of all OTUs (>1‰) for $tmp[0], $tmp[1], and $tmp[2]. (A) Compared with each others, three groups specific OTU. Each point corresponds to an OTU. Its position represents its RA with respect to each group, and its size represents the average across all three groups. Colored circles represent OTUs enriched in one group compared with the others (green in $tmp[0], orange in $tmp[1], and red in $tmp[2] samples), whereas gray circles represent OTUs that are not significantly enriched in a specific groups. (B) Group $tmp[2] (top) as control, $tmp[1] and $tmp[2] specific and common OTU; Colored circles represent OTUs enriched in $tmp[0] (green), $tmp[1] (orange), and common in $tmp[0] and $tmp[1] (red).
-#
-#```{r ter-$tmp[0]$tmp[1]$tmp[2], fig.cap="(ref:ter-$tmp[0]$tmp[1]$tmp[2])", out.width="99%"}
-#figs_1 = paste0("result_k1-c/ter_$tmp[0]$tmp[1]$tmp[2]", c("", "venn"),".png")
-#knitr::include_graphics(figs_1)
-#```
-#
-#!;
-#}
-#}
-
 
 open OUTPUT,">$opts{o}4a-culture.Rmd";
 

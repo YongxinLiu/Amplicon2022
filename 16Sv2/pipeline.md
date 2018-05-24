@@ -68,15 +68,16 @@ lane_split:
 library_split:
 	touch $@
 	# 文库按barcode拆分样品，保存至seq/sample目录中
+	# s/^@//;去掉序列名标记；s/1$$/2/;修改/1端编号格式；s/ 1/ 2/; 修改 1端编号格式
 	mkdir -p seq/sample
 	for l in `tail -n+2 doc/library.txt | cut -f 1 | tr '\n' ' '`; do \
 	echo $${l}; \
 	parallel --xapply -j ${p} "grep -A 2 -B 1 -P "^{1}" seq/$${l}_1.fq | grep -v -P '^--$$' \
 		> seq/sample/{2}_1.fq" ::: `tail -n+2 doc/$${l}.txt | cut -f 2` ::: `tail -n+2 doc/$${l}.txt | cut -f 1`; \
-	parallel -j ${p} "awk 'NR%4==1' seq/sample/{1}_1.fq | sed 's/^@//;s/1$$/2/' \
+	parallel -j ${p} "awk 'NR%4==1' seq/sample/{1}_1.fq | sed 's/^@//;s/1$$/2/;s/ 1/ 2/' \
 		> temp/id.{1}" ::: `tail -n+2 doc/$${l}.txt | cut -f 1`; \
 	parallel -j ${p} "usearch10 -fastx_getseqs seq/$${l}_2.fq -labels temp/id.{1} \
-		-fastqout seq/sample/{1}_2.fq" ::: `tail -n+2 doc/$${l}.txt | cut -f 1`; \		
+		-fastqout seq/sample/{1}_2.fq  -threads 1" ::: `tail -n+2 doc/$${l}.txt | cut -f 1`; \
 	done
 
 library_split_stat: library_split
@@ -99,7 +100,7 @@ sample_merge:
 	# 双端序列合并
 	mkdir -p seq/merge
 	parallel -j ${p} "usearch10 -fastq_mergepairs seq/sample/{1}_1.fq -reverse seq/sample/{1}_2.fq \
-		-fastqout seq/merge/{1}.fq -relabel {1}." ::: `tail -n+2 doc/design.txt | cut -f 1`
+		-fastqout seq/merge/{1}.fq -relabel {1}. -threads 1" ::: `tail -n+2 doc/design.txt | cut -f 1`
 	# 合并所有双端合并的样品
 	cat seq/merge/* > seq/all.fq
 
@@ -116,7 +117,7 @@ sample_merge_stat: sample_merge
 # Cut barcode 10bp + V5 19bp in left and V7 18bp in right
 fq_trim: 
 	touch $@
-	usearch10 -fastx_truncate temp/all.fq \
+	usearch10 -fastx_truncate seq/all.fq \
 		-stripleft ${stripleft} -stripright ${stripright} \
 		-fastqout temp/stripped.fq 
 
@@ -156,7 +157,7 @@ else ifeq (${otu_method}, cluster_otus)
 	usearch10 -cluster_otus temp/uniques.fa -otus temp/Zotus.fa -threads ${p}
 else
 	# 其它：没有提供正确的方法名称，报错提示
-	$(error "Please select the right method: one of in usearch10 or vsearch") 
+	$(error "Please select the right method: one of in unoise3 or cluster_otus") 
 endif
 	awk 'BEGIN {n=1}; />/ {print ">OTU_" n; n++} !/>/ {print}' temp/Zotus.fa > temp/otus.fa
 	echo -ne 'OTU number\t' >> ${otu_log}
@@ -263,6 +264,8 @@ otutab_filter: otutab_create
 	cp temp/otutab_trim3.txt result/otutab.txt
 	# 转换为biom格式
 	biom convert -i result/otutab.txt -o result/otutab.biom --table-type="OTU table" --to-json
+	# 添加物种注释
+	biom add-metadata -i result/otutab.biom --observation-metadata-fp result/taxonomy_2.txt -o result/otutab_tax.biom --sc-separated taxonomy --observation-header OTUID,taxonomy
 	# 统计OTU表
 	biom summarize-table -i result/otutab.biom > result/otutab.biom.sum
 	head -n 30 result/otutab.biom.sum
@@ -277,6 +280,10 @@ otutab_norm: otutab_filter
 	echo -ne "OtuNorm\t${sample_size}\t" >> ${log_otutable}
 	head -n3 result/otutab_norm.txt.stat|awk '{print $$1}'|tr '\n' '\t'|sed 's/\t$$/\n/' >> ${log_otutable}
 	cat ${log_otutable}
+	# 转换为biom格式
+	biom convert -i result/otutab_norm.txt -o result/otutab_norm.biom --table-type="OTU table" --to-json
+	# 添加物种注释
+	biom add-metadata -i result/otutab_norm.biom --observation-metadata-fp result/taxonomy_2.txt -o result/otutab_norm_tax.biom --sc-separated taxonomy --observation-header OTUID,taxonomy
 
 
 ## 1.12 物种注释 Assign taxonomy
@@ -305,7 +312,9 @@ tax_sum: tax_assign
 	# 格式化物种注释：去除sintax中置信值，只保留物种注释，替换:为_，删除引号
 	cut -f 1,4 temp/otu.fa.tax | sed 's/\td/\tk/;s/:/__/g;s/,/;/g;s/"//g;s/\/Chloroplast//' > result/taxonomy_2.txt
 	# 生成物种表格：注意OTU中会有末知为空白，补齐分类未知新物种为Unassigned
-	awk 'BEGIN{OFS=FS="\t"} {delete a; a["k"]="Unassigned";a["p"]="Unassigned";a["c"]="Unassigned";a["o"]="Unassigned";a["f"]="Unassigned";a["g"]="Unassigned";a["s"]="Unassigned"; split($$2,x,";");for(i in x){split(x[i],b,"__");a[b[1]]=b[2];} print $$1,a["k"],a["p"],a["c"],a["o"],a["f"],a["g"],a["s"];}' result/taxonomy_2.txt | sed '1 i #OTUID\tKindom\tPhylum\tClass\tOrder\tFamily\tGenus\tSpecies' > result/taxonomy_8.txt
+	awk 'BEGIN{OFS=FS="\t"} {delete a; a["k"]="Unassigned";a["p"]="Unassigned";a["c"]="Unassigned";a["o"]="Unassigned";a["f"]="Unassigned";a["g"]="Unassigned";a["s"]="Unassigned"; split($$2,x,";");for(i in x){split(x[i],b,"__");a[b[1]]=b[2];} print $$1,a["k"],a["p"],a["c"],a["o"],a["f"],a["g"],a["s"];}' result/taxonomy_2.txt | sed '1 i #OTU ID\tKindom\tPhylum\tClass\tOrder\tFamily\tGenus\tSpecies' > result/taxonomy_8.txt
+	# 去除#号和空格，会引起读取表格分列错误
+	sed -i 's/#//g;s/ //g' result/taxonomy_8.txt
 
 
 # 1.14 多序列比对和进化树 Multiply alignment and make_phylogeny
@@ -362,11 +371,11 @@ endif
 
 ## 1.17 有参比对Greengenes用于picurst, bugbase分析
 
-otutab_gg: beta_calc
+otutab_gg: 
 	touch $@
 	# 根据方法选择usearch10/vsearch比对至gg13_5数据
 ifeq (${map_method}, usearch10)
-	usearch10 -otutab temp/stripped.fq -otus ${otutab_gg} -id ${map_identify} \
+	usearch10 -otutab temp/filtered.fa -otus ${otutab_gg} -id ${map_identify} \
 		-otutabout result/otutab_gg.txt -threads ${p}
 else ifeq (${map_method}, vsearch)
 	time vsearch --usearch_global temp/filtered.fa --db ${otutab_gg} --id ${map_identify} \
@@ -377,11 +386,19 @@ else
 endif
 	# 统计OTU表
 	usearch10 -otutab_stats result/otutab_gg.txt -output result/otutab_gg.stat
-	cat result/otutab_gg.stat 
+	cat result/otutab_gg.stat
+
+
+## 1.18 生成STAMP使用格式
+
+stamp_input: tax_sum
+	#touch $@
+	# Data does not form a strick hierarchy. Child Unassigned has multiple parents. 不允许在各级别有重名，可直接使用sum_tax的各级别给STAMP使用
+	awk 'BEGIN{OFS=FS="\t"} NR==FNR {a[$$1]=$$0} NR>FNR {print a[$$1],$$0}' result/taxonomy_8.txt result/otutab_norm.txt | cut -f 2- | sed '1 s/#OTU ID/OTU/' | grep -v -P "Unassigned\tUnassigned" | grep -v '' > result/otutab_stamp.spf
 
 
 
-# 2. 统计绘图
+# 2. 统计绘图 Statistics and plot
 
 	# 绘图所需Shell脚本位于script目录中script目录下，会按参数生成R脚本于工作目录中的script下
 
@@ -439,19 +456,34 @@ tax_stackplot: beta_cpcoa
 
 DA_compare: tax_stackplot
 	touch $@
-	rm -fr result/compare/*
+	rm -fr ${Dc_output}
+	mkdir -p ${Dc_output}
 	compare.sh -i ${Dc_input} -c ${Dc_compare} -m ${Dc_method} \
 		-p ${Dc_pvalue} -q ${Dc_FDR} -F ${Dc_FC} -t ${abundance_thre} \
 		-d ${Dc_design} -A ${Dc_group_name} -B ${Dc_group_list} \
 		-o ${Dc_output}
 
+### 计算门纲目科属水平秩合检验差异，绘图维恩图，并对维恩图中各部分进行重叠
+DA_compare_tax: tax_stackplot
+	touch $@
+	for i in p c o f g;do \
+	rm -fr result/compare_$${i}; \
+	mkdir -p result/compare_$${i}; \
+	compare.sh -i result/tax/sum_$${i}.txt -c ${Dct_compare} -m ${Dct_method} \
+		-p ${Dct_pvalue} -q ${Dct_FDR} -F ${Dct_FC} -t ${abundance_thre} \
+		-d ${Dct_design} -A ${Dct_group_name} -B ${Dct_group_list} \
+		-o result/compare_$${i}/; \
+	batch_venn.pl -i doc/venn.txt -d result/compare_$${i}/diff.list; \
+	batch2.pl -i result/compare_$${i}/diff.list.venn'*'.xls -d result/compare_$${i}/database.txt -o result/compare_$${i}/ -p vennNumAnno.pl; \
+	done
 
-# 2.7 plot_volcano 基于差异OTU表绘制火山图
+
+# 2.7 plot_volcano (可选) 基于差异OTU表绘制火山图
 plot_volcano: DA_compare
 	touch $@
-	# 指定文件绘制单个图
+	# 指定文件绘制单组差异
 	# plot_volcano.sh -i result/compare/ACT2KO-Col_all.txt -o result/compare/ACT2KO-Col
-	# awk调用批量绘制文件，grep -v删空行
+	# awk调用比较列表批量绘制文件，grep -v删空行
 	awk 'BEGIN{OFS=FS="\t"}{system("plot_volcano.sh -i result/compare/"$$1"-"$$2"_all.txt -o result/compare/"$$1"-"$$2);}' \
 		<(grep -v '^$$' ${Dc_compare})
 
@@ -466,60 +498,53 @@ plot_heatmap: plot_volcano
 		-o result/compare/"$$1"-"$$2" -w ${ph_width} -h ${ph_height}");}' \
 		<(grep -v '^$$' ${Dc_compare})
 
+plot_heatmap_tax: DA_compare_tax
+	#touch $@
+	awk 'BEGIN{OFS=FS="\t"}{system("plot_heatmap.sh -i result/compare_${ph_tax}/"$$1"-"$$2"_sig.txt \
+		-o result/compare_${ph_tax}/"$$1"-"$$2" -w ${ph_width} -h ${ph_height}");}' \
+		<(grep -v '^$$' ${Dc_compare})
+
 
 # 2.9 差异OTU绘制曼哈顿图
 
 plot_manhattan: plot_heatmap
-#	touch $@
-#	f输入文件，x为X轴，y为Y轴，g为简化和物种，s为上下调，p为丰度
+	#touch $@
+	#f输入文件，x为X轴，y为Y轴，g为简化和物种，s为上下调，p为丰度
 	#sp_manhattan2.sh -f result_k1-c/otu_INDvsTEJ -x otu -y PValue -g tax -s level -p A_mean
-	sp_manhattan2.sh -f result/compare/HTEJ-HIND_all.txt -x 'HTEJ-HIND' -y PValue -g Phylum -s level -p logCPM
+	#sp_manhattan2.sh -f result/compare/HTEJ-HIND_all.txt -x HTEJ_HIND -y PValue -g Phylum -s level -p logCPM
+	# 陈同程序有待优化，先用我的脚本重画
+#	awk 'BEGIN{OFS=FS="\t"}{system("sp_manhattan2.sh -f result/compare/"$$1"-"$$2"_all.txt \
+#		-x "$$1"_"$$2" -y PValue -g Phylum -s level -p logCPM");}' \
+#		<(grep -v '^$$' ${Dc_compare})
+	# plot_manhattan.sh -i result/compare/LTEJ-LIND_all.txt
+	awk 'BEGIN{OFS=FS="\t"}{system("plot_manhattan.sh -i result/compare/"$$1"-"$$2"_all.txt");}' \
+		<(grep -v '^$$' ${Dc_compare})
 
 
-# 2.9 单个差异OTU绘制箱线图
+# 2.10 单个差异OTU绘制箱线图
 
-plot_barplot: plot_manhattan
+plot_boxplot: 
 #	touch $@
-	alpha_boxplot.sh -i result/otutab.txt -d ${Dc_design} -A ${Dc_group_name} -B ${Dc_group_list} \
-		-m ${pb_list} -t TRUE -o result/compare/ -n TRUE
+	mkdir -p ${pb_output}
+	plot_boxplot_ggpubr.sh -i ${pb_input} -d ${pb_design} -A ${g1} -B ${bp_group_list} \
+		-m ${pb_list} -t ${pb_trans} -o ${pb_output} -n ${pb_norm}
 
 
-# 2.10 维恩图
+# 2.11 维恩图
 
 plot_venn: DA_compare
 	mkdir -p result/venn
 	# 绘制维恩图ABCDE，获得比较列表AB
-	batch_venn.pl -i doc/venn.txt -d result/compare/otu.list -o result/venn/
+	batch_venn.pl -i doc/venn.txt -d result/compare/diff.list # -o result/venn/
 	# 注释列表为OTU对应描述，目前添加培养注释
 	batch2.pl -i 'result/compare/otu.list.venn*.xls' -d ${venn_anno} -o result/venn/ -p vennNumAnno.pl
 
 
-
 # 2.11 Upsetview图
 
-## 结果目录
-#mkdir -p compare
-#
-## 显示帮助
-#Rscript ./script/compare_edgeR.r -h # 显示帮助
-#
-## 默认参数：计算group分类下A-B比较
-#Rscript ./script/compare_edgeR.r
-#
-## 计算A-C
-#Rscript ./script/compare_edgeR.r -c A-C
-#
-## 按genotype分组下KO-WT
-#Rscript ./script/compare_edgeR.r -n genotype -c KO-WT
-#
-### 7. 绘制火山图、热图和曼哈顿图，同上
-#
-## 数据矩阵在edgeR_KO-WT_sig.txt文件中
-## 样品注释在design.txt中，用于列分组注释
-## OTU物种注释来自taxtab.txt文件(可选)
 
 
-# 3. 高级分析
+# 3. 高级分析 Advanced analysis
 
 ## 3.1 lefse 多种差异物种特征分析
 
@@ -530,15 +555,14 @@ plot_venn: DA_compare
 	# 需要有物种注释的biom文件作为输入
 faprotax_calc:
 	touch $@
-	# add taxonomy to biom
-	biom add-metadata -i result/otutab.biom --observation-metadata-fp result/taxonomy_2.txt -o result/otutab_tax.biom --sc-separated taxonomy --observation-header OTUID,taxonomy
+	# 原始OTU表没有标准化，后期结果再标准化可能不合理。采用抽样标准化的OTU表
 	mkdir -p result/faprotax
-	/usr/bin/python2.7 /mnt/bai/yongxin/software/FAPROTAX_1.1/collapse_table.py -i result/otutab_tax.biom -o result/faprotax/element_tab.txt -g /mnt/bai/yongxin/software/FAPROTAX_1.1/FAPROTAX.txt --collapse_by_metadata 'taxonomy' -v --force --out_report result/faprotax/report 
+	/usr/bin/python2.7 /mnt/bai/yongxin/software/FAPROTAX_1.1/collapse_table.py -i result/otutab_norm_tax.biom -o result/faprotax/element_tab.txt -g /mnt/bai/yongxin/software/FAPROTAX_1.1/FAPROTAX.txt --collapse_by_metadata 'taxonomy' -v --force --out_report result/faprotax/report 
 
 plot_fa_barplot: faprotax_calc
 #	touch $@
 	alpha_boxplot.sh -i result/faprotax/element_tab.txt -d ${Dc_design} -A ${Dc_group_name} -B ${Dc_group_list} \
-		-m ${fapro_list} -t TRUE -o result/faprotax/ -n TRUE
+		-m ${fapro_list} -t TRUE -o result/faprotax/ -n FALSE
 
 
 ## 3.4 bugbase GG表型预测
@@ -575,44 +599,6 @@ culture:
 	echo -ne "Cultured abundance\t" >> result/41culture/summary.txt
 	awk '$$3>=97 && $$4>=99' result/41culture/otu.txt | awk '{a=a+$$5} END {print a}' >> result/41culture/summary.txt
 	cat result/41culture/summary.txt
-
-# 筛选菌保的阈值/mnt/bai/yongxin/ath/jt.HuangAC/batch3all，相似度$3>97%，覆盖度$13>99%?:$$3*$$13>=9700为4497，$3>=97为4582，$3>=97 && $13>=99为4542，$3>=97 && $13>=98为4551整体相差不大
-#	awk '$$3*$$13>=9700' result/rep_seqs.blastn|cut -f 1-3 > result/rep_seqs.97
-#	awk '$$3>=97 && $$13>=99' result/rep_seqs.blastn|cut -f 1-3 > result/rep_seqs.97
-#	OTU_culture_anno.pl -i result/rep_seqs.fa -d result/rep_seqs.97 -o result/otu_cultured.txt
-## 筛选根际土、根的k1 OTU,并在相应库中匹配培养比例；
-#	mkdir -p ${filter}
-#	echo -ne "Total OTUs:\t" > result/41culture/summary.txt
-#	grep '>' -c result/rep_seqs.fa >> result/41culture/summary.txt
-#	echo -ne "OTUs similar to stocks:\t" >> result/41culture/summary.txt
-#	wc -l result/rep_seqs.blastn >> result/41culture/summary.txt
-#	echo -ne "OTUs similar > 97% in stocks:\t" >> result/41culture/summary.txt
-#	wc -l result/rep_seqs.97 >> result/41culture/summary.txt
-#	filter_otus_from_otu_table.sh -t ${thre2} -o ${filter} -f ${otu_table} -d ${design} -F 'TRUE' -A ${g1} -B ${g1_list} -C ${g2} -D ${g2_list}
-#	filter_fasta.py -f ${result}/rep_seqs.fa -o ${filter}/rep_seqs.fa.top -s ${filter}/otu_table_ha.id
-#	echo -ne "Nature > ${thre2} OTUs:\t" >> result/41culture/summary.txt
-#	grep -c '>' ${filter}/rep_seqs.fa.top >> result/41culture/summary.txt
-## 分析这些OTU中可培养的比例
-#	blastn -query ${filter}/rep_seqs.fa.top -db ${cluture_db} -out ${filter}/rep_seqs.blastn -outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs' -num_alignments 1 -evalue 1 -num_threads 9 # 输出13列为coverage
-##	awk '$$3*$$13>=9700' ${filter}/rep_seqs.blastn|cut -f 1 > ${filter}/otu_cultured.txt
-#	awk '$$3>=97 && $$13>=99' ${filter}/rep_seqs.blastn|cut -f 1-3 > ${filter}/otu_cultured.txt
-#	echo -ne "Stocked_OTUs:\t" >> result/41culture/summary.txt
-#	grep -c 'OTU' ${filter}/otu_cultured.txt >> result/41culture/summary.txt
-#	echo -ne "Nature_HA_abundance:\t" >> result/41culture/summary.txt
-#	awk '{a=a+$$2} END {print a}' ${filter}/otu_table_ha.mean >> result/41culture/summary.txt # total is 0.835
-#	echo -ne "Stocked_abundance:\t" >> result/41culture/summary.txt
-#	awk 'BEGIN{OFS=FS="\t"} NR==FNR {a[$$1]="culture"} NR>FNR {print $$0,a[$$1]}' ${filter}/otu_cultured.txt ${filter}/otu_table_ha.mean |grep 'culture'|awk '{a=a+$$2} END {print a}' >> result/41culture/summary.txt 
-## 绘制graphlan
-#	graphlan_culture.pl -i ${filter}/otu_table_ha.id -d ${filter}/otu_cultured.txt -t result/rep_seqs_tax_assignments.txt.full -o 0_ha_otu_culture.txt
-#	Rscript /mnt/bai/yongxin/bin/graphlan_culture.R # 生成1树, 2科注释, 3培养注释文件
-#	sed 's/\t/\tring_alpha\t3\t/g' ${filter}/otu_table_ha.zscore > ${filter}/abundance_heat.txt # 柱状用log2，热图用zscore
-#	cat /mnt/bai/yongxin/culture/rice/graphlan/global.cfg 2_annotation_family.txt /mnt/bai/yongxin/culture/rice/graphlan/ring1.cfg 3_annotation_match.txt /mnt/bai/yongxin/culture/rice/graphlan/abundance_heat.cfg ${filter}/abundance_heat.txt > ${filter}/5_annotation.txt
-#	graphlan_annotate.py --annot ${filter}/5_annotation.txt 1_tree_plain.txt ${filter}/graphlan.xml
-#	graphlan.py ${filter}/graphlan.xml ${filter}/graphlan.pdf --size 5
-#	graphlan.py ${filter}/graphlan.xml ${filter}/graphlan.png --size 5
-#	cat result/41culture/summary.txt
-## 生成先菌列表-可培养OTU表加丰度
-
 
 
 # 4. 输出结果报告 Write Rmarkdown HTML report
