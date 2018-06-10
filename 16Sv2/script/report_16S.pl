@@ -177,25 +177,25 @@ knitr::include_graphics(figs_2)
 Principal coordinate analysis (PCoA) using the (A) bray curtis metric, (B) unweighted unifrac metric and (C) weighted unifrac metric shows dissimilarity of microbial communities. bray_curtis [PC1/2](result/beta/bray_curtis.pdf) [PC3/4](result/beta/bray_curtis_34.pdf) [Stat](result/beta/bray_curtis.stat) [Label](result/beta/bray_curtis_label.pdf) weighted_unifrac [PC1/2](result/beta/weighted_unifrac.pdf) [PC3/4](result/beta/weighted_unifrac_34.pdf) [Stat](result/beta/weighted_unifrac.stat) [Label](result/beta/weighted_unifrac_label.pdf) unweighted_unifrac [PC1/2](result/beta/unweighted_unifrac.pdf) [PC3/4](result/beta/unweighted_unifrac_34.pdf) [Stat](result/beta/unweighted_unifrac.stat) [Label](result/beta/unweighted_unifrac_label.pdf)
 
 ```{r div-beta, fig.cap="(ref:div-beta)", out.width="99%"}
-figs_2 = paste0("result/beta/", c("bray_curtis", "weighted_unifrac", "unweighted_unifrac"),".png")
+figs_2 = paste0("result/beta/", c("bray_curtis", "weighted_unifrac"),".png")
 knitr::include_graphics(figs_2)
 ```
 
 !;
 
 
-$file = "result/beta/cpcoa.png";
+$file = "result/beta/cpcoa_bray.pdf";
 if (-e $file) {
 print OUTPUT qq!
 	
-## 限制性主坐标轴分析 Constrained PCoA 
+## 限制性 PCoA
 
-(ref:div-CPCoA) 以基因型为条件分析其贡献率和样品组间差异(筛选至少在一个样品中OTU丰度 > $opts{a} )。vriance代表当前基因型条件下各样品间差异所占的比重或贡献率，P值示基因型各组间是否存在显著差异，各样品间距离计算方法为Bray-Curtis distances。
-Constrained principal coordinate analysis on bacterial microbiota (Only OTU abundance more than $opts{a} in one sample were kept). Variation between samples in Bray-Curtis distances constrained by genotype. (Bulgarelli et al., 2015).[PDF](result_k1-c/CPCoA_$opts{g}.pdf)  [PDF labels](result_k1-c/CPCoA_$opts{g}_lab.pdf)  
+(ref:div-CPCoA) 以基因型为条件分析其贡献率和样品组间差异(筛选至少在一个组中位数存在OTU丰度 > 0.05% )。variance代表当前分组条件下各样品间差异所占的比重或贡献率，P值示基因型各组间是否存在显著差异，各样品间距离计算方法为默认为Bray-Curtis距离，可选Jaccard距离。
+Constrained principal coordinate analysis on bacterial microbiota (Only OTUs abundance median of one gorup > 0.05% were kept). Variation between samples in Bray-Curtis distances constrained by groupID. (Bulgarelli et al., 2015).[Bray-Curtis PDF](result/beta/cpcoa_bray.pdf)  [Bray-Curtis PDF labels](result/beta/cpcoa_bray_label.pdf) [jaccard PDF](result/beta/cpcoa_jaccard.pdf)  [jaccard PDF labels](result/beta/cpcoa_jaccard_label.pdf)  
 
 
 ```{r div-CPCoA, fig.cap="(ref:div-CPCoA)", out.width="99%"}
-knitr::include_graphics("result_k1-c/CPCoA_$opts{g}.png")
+knitr::include_graphics("result/beta/cpcoa_bray.png")
 ```
 
 !;
@@ -525,6 +525,22 @@ close OUTPUT;
 open OUTPUT,">$opts{o}9-references.Rmd";
 print OUTPUT qq!
 `r if (knitr:::is_html_output()) '# References {-}'`
+
+# 附录
+
+## 分析参数和配置信息
+
+- [实验设计](doc/design.txt)
+- [分析参数](makefile)
+- [比较组](doc/compare.txt)
+- [韦恩图](doc/venn.txt)
+
+## 分析结果重要文件下载
+
+- OTU表 [Count TXT](result/otutab.txt) [Count biom](result/otutab.biom) [抽样1万标准化 TXT](result/otutab_norm.txt) [抽样1万标准化 biom](result/otutab_norm.biom) [Greengene Count txt](result/otutab_gg.txt)  
+- 代表性序列 [fasta](result/otu.fa) [tree](result/otu.tree)
+- 物种注释 [2列格式](result/taxonomy_2.txt) [8列格式](result/taxonomy_8.txt)
+
 !;
 close OUTPUT;
 
@@ -532,6 +548,11 @@ close OUTPUT;
 my $duration_time=time-$start_time;
 print strftime("End time is %Y-%m-%d %H:%M:%S\n", localtime(time));
 print "This compute totally consumed $duration_time s\.\n";
+
+# 备份分析参数文件
+#$parameter=`readlink  makefile`;
+#`cp $parameter $opts{b}/makefile.txt`;
+
 
 # 编译Rmarkdown为HTML
 if ($opts{e} eq "TRUE") {
@@ -547,6 +568,6 @@ AuthType Basic
 AuthUserFile /mnt/bai/yongxin/bin/config/users
 require valid-user
 !;
-`chmod +x $opts{b}/.htaccess `;
+`chmod +x $opts{b}/.htaccess`;
 
 print "Result please visiting http://bailab.genetics.ac.cn/report/16Sv2/$opts{b}\n";

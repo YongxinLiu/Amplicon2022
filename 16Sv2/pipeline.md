@@ -77,7 +77,7 @@ library_split:
 	parallel -j ${p} "awk 'NR%4==1' seq/sample/{1}_1.fq | sed 's/^@//;s/1$$/2/;s/ 1/ 2/' \
 		> temp/id.{1}" ::: `tail -n+2 doc/$${l}.txt | cut -f 1`; \
 	parallel -j ${p} "usearch10 -fastx_getseqs seq/$${l}_2.fq -labels temp/id.{1} \
-		-fastqout seq/sample/{1}_2.fq  -threads 1" ::: `tail -n+2 doc/$${l}.txt | cut -f 1`; \
+		-fastqout seq/sample/{1}_2.fq" ::: `tail -n+2 doc/$${l}.txt | cut -f 1`; \
 	done
 
 library_split_stat: library_split
@@ -115,7 +115,7 @@ sample_merge_stat: sample_merge
 
 ## 1.4 切除引物 Cut primers and quality filter
 # Cut barcode 10bp + V5 19bp in left and V7 18bp in right
-fq_trim: 
+fq_trim: sample_merge_stat
 	touch $@
 	usearch10 -fastx_truncate seq/all.fq \
 		-stripleft ${stripleft} -stripright ${stripright} \
@@ -154,7 +154,7 @@ ifeq (${otu_method}, unoise3)
 	usearch10 -unoise3 temp/uniques.fa -zotus temp/Zotus.fa -minsize ${minuniquesize} -threads ${p}
 else ifeq (${otu_method}, cluster_otus)
 	# cluster_otus无法修改聚类参数，想使用不同聚类相似度，使用cluster_smallmem命令
-	usearch10 -cluster_otus temp/uniques.fa -otus temp/Zotus.fa -threads ${p}
+	usearch10 -cluster_otus temp/uniques.fa -otus temp/Zotus.fa
 else
 	# 其它：没有提供正确的方法名称，报错提示
 	$(error "Please select the right method: one of in unoise3 or cluster_otus") 
@@ -264,8 +264,6 @@ otutab_filter: otutab_create
 	cp temp/otutab_trim3.txt result/otutab.txt
 	# 转换为biom格式
 	biom convert -i result/otutab.txt -o result/otutab.biom --table-type="OTU table" --to-json
-	# 添加物种注释
-	biom add-metadata -i result/otutab.biom --observation-metadata-fp result/taxonomy_2.txt -o result/otutab_tax.biom --sc-separated taxonomy --observation-header OTUID,taxonomy
 	# 统计OTU表
 	biom summarize-table -i result/otutab.biom > result/otutab.biom.sum
 	head -n 30 result/otutab.biom.sum
@@ -282,8 +280,6 @@ otutab_norm: otutab_filter
 	cat ${log_otutable}
 	# 转换为biom格式
 	biom convert -i result/otutab_norm.txt -o result/otutab_norm.biom --table-type="OTU table" --to-json
-	# 添加物种注释
-	biom add-metadata -i result/otutab_norm.biom --observation-metadata-fp result/taxonomy_2.txt -o result/otutab_norm_tax.biom --sc-separated taxonomy --observation-header OTUID,taxonomy
 
 
 ## 1.12 物种注释 Assign taxonomy
@@ -307,14 +303,18 @@ tax_sum: tax_assign
 		usearch10 -sintax_summary temp/otu.fa.tax -otutabin result/otutab_norm.txt -rank $${i} \
 			-output result/tax/sum_$${i}.txt; \
 	done
-	# 删除Taxonomy中异常字符如()
-	sed -i 's/(//g;s/)//g;s/\"//g;s/\/Chloroplast//g' result/tax/sum_*.txt
+	# 删除Taxonomy中异常字符如() " - /
+	sed -i 's/(//g;s/)//g;s/\"//g;s/\/Chloroplast//g;s/\-/_/g;s/\//_/' result/tax/sum_*.txt
 	# 格式化物种注释：去除sintax中置信值，只保留物种注释，替换:为_，删除引号
 	cut -f 1,4 temp/otu.fa.tax | sed 's/\td/\tk/;s/:/__/g;s/,/;/g;s/"//g;s/\/Chloroplast//' > result/taxonomy_2.txt
 	# 生成物种表格：注意OTU中会有末知为空白，补齐分类未知新物种为Unassigned
 	awk 'BEGIN{OFS=FS="\t"} {delete a; a["k"]="Unassigned";a["p"]="Unassigned";a["c"]="Unassigned";a["o"]="Unassigned";a["f"]="Unassigned";a["g"]="Unassigned";a["s"]="Unassigned"; split($$2,x,";");for(i in x){split(x[i],b,"__");a[b[1]]=b[2];} print $$1,a["k"],a["p"],a["c"],a["o"],a["f"],a["g"],a["s"];}' result/taxonomy_2.txt | sed '1 i #OTU ID\tKindom\tPhylum\tClass\tOrder\tFamily\tGenus\tSpecies' > result/taxonomy_8.txt
 	# 去除#号和空格，会引起读取表格分列错误
 	sed -i 's/#//g;s/ //g' result/taxonomy_8.txt
+	# 添加物种注释
+	biom add-metadata -i result/otutab.biom --observation-metadata-fp result/taxonomy_2.txt -o result/otutab_tax.biom --sc-separated taxonomy --observation-header OTUID,taxonomy
+	# 添加物种注释
+	biom add-metadata -i result/otutab_norm.biom --observation-metadata-fp result/taxonomy_2.txt -o result/otutab_norm_tax.biom --sc-separated taxonomy --observation-header OTUID,taxonomy
 
 
 # 1.14 多序列比对和进化树 Multiply alignment and make_phylogeny
@@ -365,7 +365,7 @@ else ifeq (${tree_method}, mafft)
 	# 方法3：mafft+fasttree
 else
 	# 其它：没有提供正确的方法名称，报错提示
-	$(error "Please select the right method: one of in usearch10 or vsearch") 
+	$(error "Please select the right method: one of in usearch10 or qiime, mafft") 
 endif
 
 
@@ -394,7 +394,7 @@ endif
 stamp_input: tax_sum
 	#touch $@
 	# Data does not form a strick hierarchy. Child Unassigned has multiple parents. 不允许在各级别有重名，可直接使用sum_tax的各级别给STAMP使用
-	awk 'BEGIN{OFS=FS="\t"} NR==FNR {a[$$1]=$$0} NR>FNR {print a[$$1],$$0}' result/taxonomy_8.txt result/otutab_norm.txt | cut -f 2- | sed '1 s/#OTU ID/OTU/' | grep -v -P "Unassigned\tUnassigned" | grep -v '' > result/otutab_stamp.spf
+	#awk 'BEGIN{OFS=FS="\t"} NR==FNR {a[$$1]=$$0} NR>FNR {print a[$$1],$$0}' result/taxonomy_8.txt result/otutab_norm.txt | cut -f 2- | sed '1 s/#OTU ID/OTU/' | grep -v -P "Unassigned\tUnassigned" | grep -v '' > result/otutab_stamp.spf
 
 
 
@@ -488,7 +488,7 @@ plot_volcano: DA_compare
 		<(grep -v '^$$' ${Dc_compare})
 
 
-# 2.8 差异OTU绘制热图
+# 2.8 差异OTU绘制热 图
 plot_heatmap: plot_volcano
 	touch $@
 	# 指定文件绘制单个图
@@ -499,7 +499,7 @@ plot_heatmap: plot_volcano
 		<(grep -v '^$$' ${Dc_compare})
 
 plot_heatmap_tax: DA_compare_tax
-	#touch $@
+	touch $@
 	awk 'BEGIN{OFS=FS="\t"}{system("plot_heatmap.sh -i result/compare_${ph_tax}/"$$1"-"$$2"_sig.txt \
 		-o result/compare_${ph_tax}/"$$1"-"$$2" -w ${ph_width} -h ${ph_height}");}' \
 		<(grep -v '^$$' ${Dc_compare})
@@ -508,14 +508,14 @@ plot_heatmap_tax: DA_compare_tax
 # 2.9 差异OTU绘制曼哈顿图
 
 plot_manhattan: plot_heatmap
-	#touch $@
+	touch $@
 	#f输入文件，x为X轴，y为Y轴，g为简化和物种，s为上下调，p为丰度
 	#sp_manhattan2.sh -f result_k1-c/otu_INDvsTEJ -x otu -y PValue -g tax -s level -p A_mean
 	#sp_manhattan2.sh -f result/compare/HTEJ-HIND_all.txt -x HTEJ_HIND -y PValue -g Phylum -s level -p logCPM
 	# 陈同程序有待优化，先用我的脚本重画
-#	awk 'BEGIN{OFS=FS="\t"}{system("sp_manhattan2.sh -f result/compare/"$$1"-"$$2"_all.txt \
-#		-x "$$1"_"$$2" -y PValue -g Phylum -s level -p logCPM");}' \
-#		<(grep -v '^$$' ${Dc_compare})
+	#	awk 'BEGIN{OFS=FS="\t"}{system("sp_manhattan2.sh -f result/compare/"$$1"-"$$2"_all.txt \
+	#		-x "$$1"_"$$2" -y PValue -g Phylum -s level -p logCPM");}' \
+	#		<(grep -v '^$$' ${Dc_compare})
 	# plot_manhattan.sh -i result/compare/LTEJ-LIND_all.txt
 	awk 'BEGIN{OFS=FS="\t"}{system("plot_manhattan.sh -i result/compare/"$$1"-"$$2"_all.txt");}' \
 		<(grep -v '^$$' ${Dc_compare})
@@ -524,7 +524,7 @@ plot_manhattan: plot_heatmap
 # 2.10 单个差异OTU绘制箱线图
 
 plot_boxplot: 
-#	touch $@
+	touch $@
 	mkdir -p ${pb_output}
 	plot_boxplot_ggpubr.sh -i ${pb_input} -d ${pb_design} -A ${g1} -B ${bp_group_list} \
 		-m ${pb_list} -t ${pb_trans} -o ${pb_output} -n ${pb_norm}
@@ -532,12 +532,13 @@ plot_boxplot:
 
 # 2.11 维恩图
 
-plot_venn: DA_compare
+plot_venn: plot_manhattan
+	touch $@
 	mkdir -p result/venn
 	# 绘制维恩图ABCDE，获得比较列表AB
-	batch_venn.pl -i doc/venn.txt -d result/compare/diff.list # -o result/venn/
+	batch_venn.pl -i doc/venn.txt -d result/compare/diff.list
 	# 注释列表为OTU对应描述，目前添加培养注释
-	batch2.pl -i 'result/compare/otu.list.venn*.xls' -d ${venn_anno} -o result/venn/ -p vennNumAnno.pl
+	batch2.pl -i 'result/compare/diff.list.venn*.xls' -d ${venn_anno} -o result/venn/ -p vennNumAnno.pl
 
 
 # 2.11 Upsetview图
@@ -549,6 +550,21 @@ plot_venn: DA_compare
 ## 3.1 lefse 多种差异物种特征分析
 
 ## 3.2 picurst GG宏基因组预测
+picrust_calc: 
+	touch $@
+	mkdir -p picurst
+	biom convert -i result/otutab_gg.txt -o picurst/otutab.biom --table-type="OTU table" --to-json
+	biom summarize-table -i picurst/otutab.biom > picurst/otutab.stat
+	cat picurst/otutab.stat
+	# 校正拷贝数
+	normalize_by_copy_number.py -i picurst/otutab.biom -o picurst/otutab_norm.biom -c /db/picrust/16S_13_5_precalculated.tab.gz
+	# 预测宏基因组KO表
+	predict_metagenomes.py -i picurst/otutab_norm.biom -o picurst/ko.biom -c /db/picrust/ko_13_5_precalculated.tab.gz
+	predict_metagenomes.py -f -i picurst/otutab_norm.biom -o picurst/ko.txt  -c /db/picrust/ko_13_5_precalculated.tab.gz
+	# 按功能级别分类汇总, -c指输出类型，有KEGG_Pathways, COG_Category, RFAM三种，-l是级别，分4级，初始KO为4级，可全并为1-3级
+	categorize_by_function.py -f -i picurst/ko.biom -c KEGG_Pathways -l 3 -o picurst/ko3.txt
+	categorize_by_function.py -f -i picurst/ko.biom -c KEGG_Pathways -l 2 -o picurst/ko2.txt
+	categorize_by_function.py -f -i picurst/ko.biom -c KEGG_Pathways -l 1 -o picurst/ko1.txt
 
 ## 3.3 faprotax 元素循环
 	
@@ -559,6 +575,7 @@ faprotax_calc:
 	mkdir -p result/faprotax
 	/usr/bin/python2.7 /mnt/bai/yongxin/software/FAPROTAX_1.1/collapse_table.py -i result/otutab_norm_tax.biom -o result/faprotax/element_tab.txt -g /mnt/bai/yongxin/software/FAPROTAX_1.1/FAPROTAX.txt --collapse_by_metadata 'taxonomy' -v --force --out_report result/faprotax/report 
 
+	# 绘制指定marker的箱线图
 plot_fa_barplot: faprotax_calc
 #	touch $@
 	alpha_boxplot.sh -i result/faprotax/element_tab.txt -d ${Dc_design} -A ${Dc_group_name} -B ${Dc_group_list} \
@@ -603,7 +620,7 @@ culture:
 
 # 4. 输出结果报告 Write Rmarkdown HTML report
 
-rmd: plot_heatmap
+rmd: tax_stackplot
 	report_16S.pl -g ${g1} -b ${version} -m ${compare_method} # -D ${g2_list} -F ${g3_list}  -S ${elite_report} -a ${thre} -s ${summary} -d ${design} -l ${library} -c ${compare} -v ${venn} -t ${tern}
 	ln -sf ${wd}/${version}/ /var/www/html/report/16Sv2/${version}
 	rm -f ${version}/${version}

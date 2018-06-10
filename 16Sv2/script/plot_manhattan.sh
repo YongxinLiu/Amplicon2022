@@ -231,6 +231,8 @@ main_theme = theme(panel.background=element_blank(), panel.grid=element_blank(),
 x = read.table("${input}", header=T, row.names= 1, sep="\t") 
 # 只提取前14列
 x = x[,1:14]
+x = na.omit(x)
+
 # P值求负对数
 x\$neglogp = -log10(x\$PValue)
 

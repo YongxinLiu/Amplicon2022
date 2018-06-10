@@ -256,11 +256,12 @@ design = design[idx,]
 otutab = otutab[,rownames(design)]
 
 # 按丰度值按组中位数筛选OTU
-# 标准化为比例，并转置
+# 标准化为百分比例，并转置
 if (${normalization}){
-	norm = t(otutab)/colSums(otutab,na=T)
+	norm = t(otutab)/colSums(otutab,na=T)*100
 }else{
-	norm=t(otutab)
+	# 非标准化时为，默认抽样10000，除以100标准为百分比
+	norm=t(otutab)/100
 }
 # 筛选组信
 grp = design[, "group", drop=F]
@@ -365,6 +366,13 @@ compare_DA = function(compare){
 	# 保存筛选结果于sig.txt结尾文件中
 	write.table(paste(SampAvsB, "\t",sep=""), file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
 	suppressWarnings(write.table(output, file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
+
+	# 确保有差异才写入，否则会出不完整行
+	if (dim(output)[1]>1){
+	# 保存差异列表用于维恩图展示 save each group DA OTU list for venndiagram
+	# 使用edgeR中的比较-相连，无法作为变量赋值，改为_
+	write.table(cbind(rownames(output),paste(group_list[1],"_", group_list[2], output\$level, sep="")), file=paste("${output}/diff.list", sep=""), append = TRUE, sep="\t", quote=F, row.names=F, col.names=F)
+	}
 }
 
 END
@@ -387,7 +395,7 @@ compare_DA = function(compare){
 	if (${normalization}){
 		sub_norm = t(t(sub_dat)/colSums(sub_dat,na=T))*100
 	}else{
-		norm = otutab
+		sub_norm = as.matrix(otutab)/100 # 数据类型一致，计算后矩阵
 	}
 	# 建立两组的矩阵
 	idx = sub_design\$group %in% group_list[1]
@@ -457,8 +465,8 @@ compare_DA = function(compare){
 	# 确保有差异才写入，否则会出不完整行
 	if (dim(output)[1]>1){
 	# 保存差异列表用于维恩图展示 save each group DA OTU list for venndiagram
-	# write.table(cbind(rownames(output),paste(SampAvsB, output\$level, sep=""), output\$PValue), file=paste("result/compare/otu", ".list", sep=""), append = TRUE, sep="\t", quote=F, row.names=F, col.names=F) # 使用edgeR中的比较-相连，无法作为变量赋值，改为_
-	write.table(cbind(rownames(output),paste(group_list[1],"_", group_list[2], output\$level, sep="")), file=paste("${output}/diff", ".list", sep=""), append = TRUE, sep="\t", quote=F, row.names=F, col.names=F)
+	# 使用edgeR中的比较-相连，无法作为变量赋值，改为_
+	write.table(cbind(rownames(output),paste(group_list[1],"_", group_list[2], output\$level, sep="")), file=paste("${output}/diff.list", sep=""), append = TRUE, sep="\t", quote=F, row.names=F, col.names=F)
 	}
 }
 

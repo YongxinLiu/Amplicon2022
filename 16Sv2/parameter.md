@@ -8,11 +8,11 @@ SHELL:=/bin/bash
 
 	## 工作目录 Working directory
 	# 修改wd为当前工作目录pwd
-	wd=`pwd` 
+	wd=`pwd`
 	# make init # 建立分析所需子目录
 
 	# 设置任务最大运行任务/线程数，超过CPU数量效率反而会降低
-	p=36
+	p=32
 	
 	# 数据库
 	# Greengene 13 May database, fa for usearch format, udb for usearch index
@@ -59,7 +59,7 @@ SHELL:=/bin/bash
 
 	# Remove redundancy
 	# 最小序列频率miniuniqusize默认为8，去除低丰度，增加计算速度，整lane的序列可更改为30，甚至100
-	minuniquesize=100
+	minuniquesize=8
 
 ## 1.7. otu_pick 挑选OTU
 
@@ -122,7 +122,7 @@ SHELL:=/bin/bash
 	# 可选gg, silva，分别从官网下载并shell调整格式
 	sintax_db=${usearch_silva}
 	# 分类准确度阈值，默认0.8，注释太少最小可改0.5，发现有明显错误可最高上升为0.95
-	sintax_cutoff=0.6
+	sintax_cutoff=0
 
 ## 1.13. tax_sum 物种注释统计
 
@@ -147,6 +147,7 @@ SHELL:=/bin/bash
 	# 距离矩阵计算方法，34种可选： abund_jaccard, binary_chisq, binary_chord, binary_euclidean, binary_hamming, binary_jaccard, binary_lennon, binary_ochiai, binary_otu_gain, binary_pearson, binary_sorensen_dice, bray_curtis, bray_curtis_faith, bray_curtis_magurran, canberra, chisq, chord, euclidean, gower, hellinger, kulczynski, manhattan, morisita_horn, pearson, soergel, spearman_approx, specprof, unifrac, unifrac_g, unifrac_g_full_tree, unweighted_unifrac, unweighted_unifrac_full_tree, weighted_normalized_unifrac, weighted_unifrac
 	# 默认使用4种
 	dis_method=bray_curtis,binary_jaccard,weighted_unifrac,unweighted_unifrac
+	tree_method=qiime
 
 ## 1.17. otutab_ref 有参比对生成OTU表
 

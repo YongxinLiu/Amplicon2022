@@ -52,7 +52,7 @@ foreach  my $key1 (sort keys %database) {
 	}
 }
 close OUTPUT;
-print "OTU功能注释列表：$opts{o}.otu_func\n";
+print "OTU功能注释列表: $opts{o}.otu_func\n";
 
 # 保存功能-OTU列表
 open OUTPUT,">$opts{o}.func_otu";
@@ -62,7 +62,7 @@ foreach  my $key1 (sort keys %database2) {
 	}
 }
 close OUTPUT;
-print "功能包含OTU列表：$opts{o}.func_otu\n";
+print "功能包含OTU列表: $opts{o}.func_otu\n";
 
 # 保存功能-OTU列表
 open OUTPUT,">$opts{o}.mat";
@@ -75,14 +75,19 @@ print OUTPUT "\n";
 # 写OTU每行
 foreach  my $key1 (sort keys %database) {
 	print OUTPUT "$key1";
-	foreach my $key2 (sort keys %{$database{$key1}}) { # sort {$a<=>$b;}
-		$database{$key1}{$key2}=0 unless defined($database{$key1}{$key2});
-		print OUTPUT "\t$database{$key1}{$key2}";
+	foreach my $key2 (sort keys %database2) { 
+		if (!defined($database{$key1}{$key2})) {
+			$database{$key1}{$key2}=0;
+			#print "\t$database{$key1}{$key2}";
+			print OUTPUT "\t$database{$key1}{$key2}";
+		}else{
+			print OUTPUT "\t$database{$key1}{$key2}";
+		}
 	}
 	print OUTPUT "\n";
 }
 close OUTPUT;
-print "OTU功能有无矩阵：$opts{o}.mat\n";
+print "OTU功能有无矩阵: $opts{o}.mat\n";
 
 
 
