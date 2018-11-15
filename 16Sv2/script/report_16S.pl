@@ -18,11 +18,14 @@ Command:  -d design.txt
           -l library.txt
           -v venn.txt
           -s summary.txt
+          -c compare.txt
           -t tern.txt
           -a abundance threshold, default 0.005
           -b version for output directory
           -S TRUE or FLASE, whether report simplified report, default FALSE
           -h header line number, default 0
+          -p pvalue threshold
+          -q qvalue or FDR threshold
 Author:   Liu Yong-Xin, yxliu\@genetics.ac.cn, QQ:42789409
 Version:  v1.0
 Update:   2018/5/2
@@ -36,8 +39,11 @@ Notes:    1.0 show alpha, beta and taxonomy
 #Get the parameter and provide the usage.
 ###############################################################################
 my %opts;
-getopts( 'a:i:o:d:e:l:c:v:m:n:h:s:g:D:F:t:b:S:', \%opts );
-$opts{a}=0.001 unless defined($opts{a});
+getopts( 'a:i:o:f:p:q:d:e:l:c:v:m:n:h:s:g:D:F:t:b:S:', \%opts );
+$opts{a}=0.01 unless defined($opts{a});
+$opts{f}=1.2 unless defined($opts{f});
+$opts{p}=0.05 unless defined($opts{p});
+$opts{q}=0.1 unless defined($opts{q});
 $opts{h}=0 unless defined($opts{h});
 $opts{o}="./" unless defined($opts{o}); # work directory
 $opts{s}="doc/summary.txt" unless defined($opts{s});
@@ -56,16 +62,19 @@ my $start_time=time;
 print strftime("Start time is %Y-%m-%d %H:%M:%S\n", localtime(time));
 
 my %list;
+if (-e "$opts{s}") {
 open LIST,"<$opts{s}";
 while (<LIST>) {
 	chomp;
 	my @tmp=split/\t/;
 	$list{$tmp[0]}=$tmp[1];
 }
+}
 close LIST;
 
 # Set project default parameter
 $list{title}="Analysis report of 16s rDNA Sequencing" unless defined($list{title});
+$list{client}="Bailab member" unless defined($list{client});
 $list{partner}=$list{client} unless defined($list{partner});
 $list{analyst}="Dr. Yong-Xin Liu, Bailab, IGDB, CAS" unless defined($list{analyst});
 $list{contact}="yxliu\@genetics.ac.cn 010-64808722" unless defined($list{contact});
@@ -208,6 +217,7 @@ close OUTPUT;
 open DATABASE,"<$opts{c}";
 while (<DATABASE>) {
 	chomp;
+	#print "$_\n";	
 	push @group,$_;
 }
 close DATABASE;
@@ -240,11 +250,23 @@ print OUTPUT qq!
 figs_2 = paste0("result/tax/sum_$tax_en[$i]_", c("sample","group"),".png")
 knitr::include_graphics(figs_2)
 ```
+
+组间差异$tax_en[$i]水平概述
+
+样品组间显著差异OTUs数量(组内相对丰度中位数 > $opts{a}%, Fold-Change > $opts{f}, P-value < $opts{p}, FDR < $opts{q}, 统计方法为Wilcoxon rank sum test)如 Table \\\@ref(tab:otu-sum-$tax_en[$i]) 所示。[TXT](result/compare_$tax_en[$i]/summary.txt)；
+
+```{r otu-sum-$tax_en[$i]}
+table_otu = read.table("result/compare_$tax_en[$i]/summary.txt", sep="\\t", header=T)
+knitr::kable(table_otu, caption="各样品组间差异OTUs数量汇总", booktabs=TRUE)
+```
+
 !;
 foreach (@group) {
+	#print $_,"\n";
 	chomp;
 	my @tmp=split/\t/; # sampleA and sampleB
-$file = "result/compare_$tax_en[$i]/$tmp[0]-$tmp[1]_sig.txt";
+	#print $tmp[0],"\n",$tmp[1],"\n";
+	$file = "result/compare_$tax_en[$i]/$tmp[0]-$tmp[1]_sig.txt";
 
 if (-e $file) {
 print OUTPUT qq!
@@ -253,7 +275,7 @@ print OUTPUT qq!
 $tmp[0]与$tmp[1]相比显著差异的分类单元信息如 Table \\\@ref(tab:taxonomy-$tmp[0]vs$tmp[1]-$tax_en[$i]) 所示。[All TXT](result/compare_$tax_en[$i]/$tmp[0]-$tmp[1]_all.txt) [Significant TXT](result/compare_$tax_en[$i]/$tmp[0]-$tmp[1]_sig.txt)
 
 ```{r taxonomy-$tmp[0]vs$tmp[1]-$tax_en[$i]}
-m = read.table("result/compare_$tax_en[$i]/$tmp[0]-$tmp[1]_sig.txt", sep="\\t", header=T, row.names = 1)
+m = read.table("result/compare_$tax_en[$i]/$tmp[0]-$tmp[1]_sig.txt", sep="\\t", header=T, row.names = 1, comment.char = "")
 e = m[m\$logFC>0,]
 e = head(e[order(-e\$MeanA),],n=10)
 d = m[m\$logFC<0,]
@@ -388,7 +410,7 @@ print OUTPUT qq!
 
 ## 差异OTUs概述 {#result-otu-sum}
 
-样品组间显著差异OTUs数量(P < 0.001, FDR < 0.05，统计方法为$opts{m})如 Table \\\@ref(tab:otu-sum) 所示。[TXT](result/compare/summary.txt)；
+样品组间显著差异OTUs数量(组内Abundance中位数 > $opts{a}%, Fold-Change > $opts{f}, P-value < $opts{p}, FDR < $opts{q}, 统计方法为$opts{m})如 Table \\\@ref(tab:otu-sum) 所示。[TXT](result/compare/summary.txt)；
 
 ```{r otu-sum}
 table_otu = read.table("result/compare/summary.txt", sep="\\t", header=T)
@@ -401,17 +423,19 @@ foreach (@group) {
 	chomp;
 	my @tmp=split/\t/; # sampleA and sampleB
 	$i++;
+	$file = "result/compare/$tmp[0]-$tmp[1]_sig.txt";
 
+if (-e $file) {
 print OUTPUT qq!
 
 ## $tmp[0] vs $tmp[1]
 
 (ref:otu-$i) $tmp[0] vs $tmp[1]组间相对丰度显著差异OTUs (Pvalue < 0.001 & FDR < 0.05, GLM likelihood rate test(edgeR), or wilcoxon rank test)。(A) 火山图展示两组比较OTUs的变化，x轴为OTU差异倍数取以2为底的对数，y轴为取丰度值百万比取2为底的对数，红蓝分别代表显著上下调，灰为没有显著变化的OTUs；(B) 热图展示$tmp[0]与$tmp[1]显著差异OTU在每个样品中丰度值，数据采用Z-Score方法进行标准化，红色代表丰度相对高，而绿色代表丰度相对低，黄色代表中间水平；(C) 曼哈顿图展示OTU的变化情况及在各门水平中的分布，x轴为OTU按物种门水平物种注释字母排序，y轴为Pvalue值取自然对数，虚线为采用FDR校正的P-value的显著性阈值，图中每个点代表OTU，颜色为门水平注释，大小为相对丰度，形状为变化类型，其中上实心三角为显著上调，而下空心三角为显著下调；(D) 曼哈顿图按目水平上色。
 $tmp[0] are enriched and depleted for certain OTUs (P & FDR < 0.05, GLM likelihood rate test). (A) Volcano plot overview of abundance and fold change of OTUs; (B) Heatmap showing differentially abundance OTUs; (C) Manhattan plot showing phylum pattern of differentially abundance OTUs, colored by phylum; (D) Manhattan plot colored by order.
-[VolcanoPlot](result/compare/$tmp[0]-$tmp[1]_volcano.pdf)  [Heatmap](result/compare/$tmp[0]-$tmp[1]_heatmap.pdf)
+[VolcanoPlot](result/compare/$tmp[0]-$tmp[1]_volcano.pdf)  [Heatmap](result/compare/$tmp[0]-$tmp[1]_heatmap.pdf) [Mamnahttan plot](result/compare/$tmp[0]-$tmp[1]_all.txt_man_pc.pdf)
 
 ```{r otu-$i, fig.cap="(ref:otu-$i)", out.width="99%"}
-figs = paste0("result/compare/$tmp[0]-$tmp[1]_", c("volcano","heatmap"),".png")
+figs = paste0("result/compare/$tmp[0]-$tmp[1]_", c("volcano","heatmap","all.txt_man_pc"),".png")
 knitr::include_graphics(figs)
 ```
 
@@ -429,6 +453,14 @@ knitr::kable(m, row.names=T, caption="$tmp[0]与$tmp[1]显著差异的OTUs；Sig
 ```
 
 !;
+}else{
+print OUTPUT qq!
+### $tmp[0] vs $tmp[1]
+
+无显著差异丰度分类单元；No significantlly differentially abundance taxonomy.
+
+!;
+}
 }
 
 
@@ -570,4 +602,4 @@ require valid-user
 !;
 `chmod +x $opts{b}/.htaccess`;
 
-print "Result please visiting http://bailab.genetics.ac.cn/report/16Sv2/$opts{b}\n";
+print "Result please visiting http://210.75.224.110/report/16Sv2/$opts{b}\n";

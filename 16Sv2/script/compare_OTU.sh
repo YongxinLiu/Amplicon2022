@@ -274,9 +274,6 @@ idx = rownames(design) %in% colnames(otutab)
 design = design[idx, , drop = F]
 otutab = otutab[,rownames(design)]
 
-# 检查样品标准化方式，通常有1，百分比，RPM等
-colSums(otutab)
-
 # 按丰度值按组中位数筛选OTU
 # 标准化为百分比例，并转置
 if (${normalization}){
@@ -366,7 +363,7 @@ compare_DA = function(compare){
 	B_mean = as.data.frame(rowMeans(B_norm))
 	colnames(B_mean)=c("MeanB")
 	# merge and reorder
-	Mean = round(cbind(A_mean, B_mean, A_norm, B_norm),7)
+	Mean = round(cbind(A_mean, B_mean, A_norm, B_norm),3)
 	Mean = Mean[rownames(nrDAO),]
 
 	# 存在物种注释，添加至Mean前
@@ -433,7 +430,7 @@ compare_DA = function(compare){
 	# 对每行OUT/基因进行秩合检验
 	# dim(nrDAO)[1]
 	for ( i in 1:dim(nrDAO)[1]){
-		FC = (mean(GroupA[i,])+0.0000001)/(mean(GroupB[i,])+0.0000001)
+		FC = (mean(GroupA[i,])+0.0001)/(mean(GroupB[i,])+0.0001)
 		nrDAO[i,2]=log2(FC)
 		nrDAO[i,3]=log2(max(c(GroupA[i,],GroupB[i,]))*10000)
 		nrDAO[i,4]= wilcox.test(as.numeric(GroupA[i,]),as.numeric(GroupB[i,]))\$p.value
@@ -461,7 +458,7 @@ compare_DA = function(compare){
 	B_mean = as.data.frame(rowMeans(B_norm))
 	colnames(B_mean)=c("MeanB")
 	# merge and reorder
-	Mean = round(cbind(A_mean, B_mean, A_norm, B_norm),7)
+	Mean = round(cbind(A_mean, B_mean, A_norm, B_norm),3)
 	Mean = Mean[rownames(nrDAO),]   
 
 	# 存在物种注释，添加至Mean前
@@ -498,13 +495,13 @@ compare_DA = function(compare){
 
 END
 
-elif [ $method = "ttest" ]; then
+elif [ $method = "t.test" ]; then
 	
 cat <<END >>script/compare.R
-print(paste("你正在使用t检验！Now, you are using t-test!", sep=" "))
+print(paste("你正在使用秩和检验！Now, you are using wilcoxon test!", sep=" "))
 
 compare_DA = function(compare){
-	# 筛选比较组wilcox
+	# 筛选比较组t.test
 	group_list = as.vector(as.matrix(compare))
 	SampAvsB=paste(group_list[1] ,"-", group_list[2], sep="")
 	idx = design\$group %in% group_list
@@ -528,7 +525,7 @@ compare_DA = function(compare){
 	# 对每行OUT/基因进行秩合检验
 	# dim(nrDAO)[1]
 	for ( i in 1:dim(nrDAO)[1]){
-		FC = (mean(GroupA[i,])+0.0000001)/(mean(GroupB[i,])+0.0000001)
+		FC = (mean(GroupA[i,])+0.0001)/(mean(GroupB[i,])+0.0001)
 		nrDAO[i,2]=log2(FC)
 		nrDAO[i,3]=log2(max(c(GroupA[i,],GroupB[i,]))*10000)
 		nrDAO[i,4]= t.test(as.numeric(GroupA[i,]),as.numeric(GroupB[i,]))\$p.value
@@ -556,7 +553,7 @@ compare_DA = function(compare){
 	B_mean = as.data.frame(rowMeans(B_norm))
 	colnames(B_mean)=c("MeanB")
 	# merge and reorder
-	Mean = round(cbind(A_mean, B_mean, A_norm, B_norm),7)
+	Mean = round(cbind(A_mean, B_mean, A_norm, B_norm),3)
 	Mean = Mean[rownames(nrDAO),]   
 
 	# 存在物种注释，添加至Mean前

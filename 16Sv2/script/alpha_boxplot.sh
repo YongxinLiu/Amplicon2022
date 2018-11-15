@@ -17,6 +17,7 @@ width=8
 g1=groupID
 g1_list=''
 figure_data=FALSE
+unit=1
 
 # 脚本功能描述 Function for script description and usage
 usage()
@@ -46,6 +47,9 @@ Version 1.1 2018/5/16
 transposition is fit OTU table (SampleID in colnames) as input; 
 normalization for raw reads count data; 
 figure_data for otuput raw data of boxplot
+Version 1.2 2018/6/21
+新增 -U unit单位，不标准化时可以调整参数，如百分比变为百分，即输入10000，1变百分百则为100
+
 
 # All input and output should be in default directory, or give relative or absolute path by -i/-d
 
@@ -64,7 +68,7 @@ GroupAr10	0.0635	0.00505 1206.1	0.981	0.707	77.7	151.0	29886.0 1205.0	0.294	0.01
 # Output file
 1. Alpha diversity boxplot: result/alpha/${method}.pdf/png, default method include chao1 richness shannon_e 
 2. Alpha diversity statisitcs: result/alpha/${method}.txt, aov statistics, TukeyHSD test, conf.level = 0.95
-2. Boxplot raw data: result/alpha/${method}_raw.txt, figure data, default not output
+3. Boxplot raw data: result/alpha/${method}_raw.txt, figure data, default not output
 
 OPTIONS:
 	-d design for each samples, default doc/design.txt 实验设计
@@ -80,6 +84,7 @@ OPTIONS:
 	-A g1 - group name 实验设计中组列名
 	-B g1_list - group selected list, empty will not select 组选择，不添则使用全部
 	-F figure_data output in method_raw.txt, default FALSE 是否输出图和原始数据
+	-U Unit for adjust percentage, ratio and RPM
 	-? show help of script 显示帮助
 
 Example:
@@ -90,7 +95,7 @@ EOF
 
 
 # 参数解析 Analysis parameter
-while getopts "d:e:h:i:m:n:o:s:t:w:A:B:F:" OPTION
+while getopts "d:e:h:i:m:n:o:s:t:w:A:B:F:U:" OPTION
 do
 	case $OPTION in
 		d)
@@ -132,6 +137,9 @@ do
 			;;
 		F)
 			figure_data=$OPTARG
+			;;
+		U)
+			unit=$OPTARG
 			;;
 		?)
 			usage
@@ -230,7 +238,11 @@ if ($transposition){
 # 标准化数据矩阵
 if ($normalization){
 	alpha = as.data.frame(alpha/rowSums(alpha,na=T) * 100) # normalization to 1000
+}else{
+	alpha = alpha * ${unit}
 }
+
+
 # 读取实验设计
 design = read.table("${design}", header=T, row.names=1, sep="\t")
 # 统一改实验列为group
@@ -247,7 +259,7 @@ if ($select1){
 
 # 实验设计与输入文件交叉筛选
 idx = rownames(sub_design) %in% rownames(alpha)
-sub_design=sub_design[idx,]
+sub_design=sub_design[idx, , drop=F]
 sub_alpha=alpha[rownames(sub_design),]
 
 # 合并Alpha指数与实验设计 add design to alpha
@@ -291,7 +303,7 @@ if (${figure_data}){
 
 	p = ggplot(index, aes(x=group, y=index[[m]], color=group)) +
 		geom_boxplot(alpha=1, outlier.size=0, size=0.7, width=0.5, fill="transparent") +
-		labs(x="Groups", y=paste(m, "index")) + theme_classic() + main_theme +
+		labs(x="Groups", y=paste(m, "")) + theme_classic() + main_theme +
 		geom_text(data=index, aes(x=group, y=y, color=group, label= stat)) +
 		geom_jitter( position=position_jitter(0.17), size=1, alpha=0.7)
 	if (length(unique(sub_design\$group))>3){

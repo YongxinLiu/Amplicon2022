@@ -1,9 +1,9 @@
-  # 程序功能：R语言统计、绘图常用包和参数
-  # Functions: Frequency used packages and parameters for statistics and plotting in R
-  # 主要内容 Main steps: 
-  # - 1. 常用包自动安装和加载
-  # - 2. 绘图参数和函数
-  # - 3. 统计函数
+# 程序功能：R语言包安装、统计、绘图大全
+# Functions: Frequency used packages,  statistics and plotting functions in R
+# 主要内容 Main steps: 
+# - 1. 常用包自动安装和加载
+# - 2. 绘图参数和函数
+# - 3. 统计函数
 
 
 
@@ -11,39 +11,39 @@
 
 ## 1.1 安装CRAN来源常用包
 
-  site="https://mirrors.tuna.tsinghua.edu.cn/CRAN"
-  # 依赖包列表：参数解析、数据变换、绘图和开发包安装、安装依赖、ggplot主题
-  package_list = c("reshape2", "ggplot2", "devtools", "bindrcpp", "ggthemes", "agricolae", "dplyr", 
-                   "scales", "vegan", "pheatmap")
-  # 判断R包加载是否成功来决定是否安装后再加载
-  for(p in package_list){
-    if(!suppressWarnings(suppressMessages(require(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
-      install.packages(p, repos=site)
-      suppressWarnings(suppressMessages(library(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
-    }
+site="https://mirrors.tuna.tsinghua.edu.cn/CRAN"
+# 依赖包列表：参数解析、数据变换、绘图和开发包安装、安装依赖、ggplot主题
+package_list = c("vegan", "reshape2", "ggplot2", "devtools", "bindrcpp", "ggthemes", "agricolae", "dplyr", 
+                 "scales", "vegan", "pheatmap")
+# 判断R包加载是否成功来决定是否安装后再加载
+for(p in package_list){
+  if(!suppressWarnings(suppressMessages(require(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
+    install.packages(p, repos=site)
+    suppressWarnings(suppressMessages(library(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
   }
+}
 
-## 2.2 安装bioconductor常用包
+## 1.2 安装bioconductor常用包
   
-  package_list = c("digest")
-  for(p in package_list){
-    if(!suppressWarnings(suppressMessages(require(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
-      source("https://bioconductor.org/biocLite.R")
-      biocLite(p)
-      suppressWarnings(suppressMessages(library(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
-    }
+package_list = c("digest", "ggrepel")
+for(p in package_list){
+  if(!suppressWarnings(suppressMessages(require(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
+    source("https://bioconductor.org/biocLite.R")
+    biocLite(p)
+    suppressWarnings(suppressMessages(library(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
   }
+}
 
-# 2.3 安装Github常用包
+# 1.3 安装Github常用包
 
-  package_list = c("kassambara/ggpubr")
-  for(p in package_list){
-    q=unlist(strsplit(p,split = "/"))[2]
-    if(!suppressWarnings(suppressMessages(require(q, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
-      install_github(p)
-      suppressWarnings(suppressMessages(library(q, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
-    }
+package_list = c("kassambara/ggpubr")
+for(p in package_list){
+  q=unlist(strsplit(p,split = "/"))[2]
+  if(!suppressWarnings(suppressMessages(require(q, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
+    install_github(p)
+    suppressWarnings(suppressMessages(library(q, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
   }
+}
 
 
   
@@ -52,61 +52,56 @@
   # Set ggplot2 drawing parameter, such as axis line and text size, lengend and title size, and so on.
 
 ## 2.1 设置颜色
-  
+
+alpha <- .7
+c_yellow <-          rgb(255 / 255, 255 / 255,   0 / 255, alpha)
+c_blue <-            rgb(  0 / 255, 000 / 255, 255 / 255, alpha)
+c_orange <-          rgb(255 / 255,  69 / 255,   0 / 255, alpha)
+c_green <-           rgb(  50/ 255, 220 / 255,  50 / 255, alpha)
+c_dark_green <-      rgb( 50 / 255, 200 / 255, 100 / 255, alpha)
+c_very_dark_green <- rgb( 50 / 255, 150 / 255, 100 / 255, alpha)
+c_sea_green <-       rgb( 46 / 255, 129 / 255,  90 / 255, alpha)
+c_black <-           rgb(  0 / 255,   0 / 255,   0 / 255, alpha)
+c_grey <-            rgb(180 / 255, 180 / 255,  180 / 255, alpha)
+c_dark_brown <-      rgb(101 / 255,  67 / 255,  33 / 255, alpha)
+c_red <-             rgb(200 / 255,   0 / 255,   0 / 255, alpha)
+c_dark_red <-        rgb(255 / 255, 130 / 255,   0 / 255, alpha)
+
 ## 2.2 调置ggplot2主题
   
-  
-  alpha <- .7
-  c_yellow <-          rgb(255 / 255, 255 / 255,   0 / 255, alpha)
-  c_blue <-            rgb(  0 / 255, 000 / 255, 255 / 255, alpha)
-  c_orange <-          rgb(255 / 255,  69 / 255,   0 / 255, alpha)
-  c_green <-           rgb(  50/ 255, 220 / 255,  50 / 255, alpha)
-  c_dark_green <-      rgb( 50 / 255, 200 / 255, 100 / 255, alpha)
-  c_very_dark_green <- rgb( 50 / 255, 150 / 255, 100 / 255, alpha)
-  c_sea_green <-       rgb( 46 / 255, 129 / 255,  90 / 255, alpha)
-  c_black <-           rgb(  0 / 255,   0 / 255,   0 / 255, alpha)
-  c_grey <-            rgb(180 / 255, 180 / 255,  180 / 255, alpha)
-  c_dark_brown <-      rgb(101 / 255,  67 / 255,  33 / 255, alpha)
-  c_red <-             rgb(200 / 255,   0 / 255,   0 / 255, alpha)
-  c_dark_red <-        rgb(255 / 255, 130 / 255,   0 / 255, alpha)
-  
-  # 主题为空白，轴线宽和颜色，刻度和文字，图例位置，正文文字
-  main_theme = theme(panel.background=element_blank(),
-                     panel.grid=element_blank(),
-                     axis.line.x=element_line(size=.5, colour="black"),
-                     axis.line.y=element_line(size=.5, colour="black"),
-                     axis.ticks=element_line(color="black"),
-                     axis.text=element_text(color="black", size=7),
-                     legend.position="right",
-                     legend.background=element_blank(),
-                     legend.key=element_blank(),
-                     legend.text= element_text(size=7),
-                     text=element_text(family="sans", size=7))
-
+# 主题为空白，轴线宽和颜色，刻度和文字，图例位置，正文文字
+main_theme = theme(panel.background=element_blank(),
+             panel.grid=element_blank(),
+             axis.line.x=element_line(size=.5, colour="black"),
+             axis.line.y=element_line(size=.5, colour="black"),
+             axis.ticks=element_line(color="black"),
+             axis.text=element_text(color="black", size=7),
+             legend.position="right",
+             legend.background=element_blank(),
+             legend.key=element_blank(),
+             legend.text= element_text(size=7),
+             text=element_text(family="sans", size=7))
 
 
 
 
 #  3. 统计函数
 
-# 函数summarySE：计算样本均值、标准差、标准误和置信区间
+## 3.1 summarySE：计算样本均值、标准差、标准误和置信区间
 summarySE = function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
                      conf.interval=.95, .drop=TRUE) {
   library(plyr)
   # 计算长度
   length2 = function (x, na.rm=FALSE) {
     if (na.rm) sum(!is.na(x))
-    else       length(x)
+    else length(x)
   }
   # 以 groupvars 为组,计算每组的长度,均值,以及标准差
   # ddply 就是 dplyr 中的 group_by + summarise
-  datac = ddply(data, groupvars, .drop=.drop,
-                .fun = function(xx, col) {
+  datac = ddply(data, groupvars, .drop=.drop,.fun = function(xx, col) {
                   c(N    = length2(xx[[col]], na.rm=na.rm),
                     mean = mean   (xx[[col]], na.rm=na.rm),
-                    sd   = sd     (xx[[col]], na.rm=na.rm)
-                  )
-                },
+                    sd   = sd     (xx[[col]], na.rm=na.rm))},
                 measurevar
   )
   # 重命名  
@@ -123,7 +118,7 @@ summarySE = function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
 }
 
 
-# vegan cca分析使用统计函数
+## 3.2 解析Vegan::cca结果
 variability_table <- function(cca){
   
   chi <- c(cca$tot.chi,
@@ -158,7 +153,8 @@ cca_ci <- function(cca, permutations=5000){
 }
 
 
-# 三元图绘制函数
+
+## 3.3 三元图绘制函数
 tern_e<-function (x, scale = 1, dimnames = NULL, dimnames_position = c("corner",
                                                                        "edge", "none"), dimnames_color = "black", id = NULL, id_color = "black",
                   coordinates = FALSE, grid = TRUE, grid_color = "gray", labels = c("inside",
@@ -258,4 +254,103 @@ tern_e<-function (x, scale = 1, dimnames = NULL, dimnames_position = c("corner",
   if (pop)
     popViewport(2)
   else upViewport(2)
+}
+
+
+
+## 3.4 da_adonis：距离矩阵adonis组间差异统计
+
+# Compare each group distance matrix by vegan adonis in bray_curtis
+da_adonis = function(sampleV){
+  sampleA = as.matrix(sampleV$sampA)
+  sampleB = as.matrix(sampleV$sampB)
+  design2 = subset(sub_design, group %in% c(sampleA,sampleB))
+  if (length(unique(design2$group))>1) {
+    sub_dis_table = dis_table[rownames(design2),rownames(design2)]
+    sub_dis_table = as.dist(sub_dis_table, diag = FALSE, upper = FALSE)
+    adonis_table = adonis(sub_dis_table ~ group, data = design2, permutations = 1000) 
+    adonis_pvalue = adonis_table$aov.tab$`Pr(>F)`[1]
+    print(paste("In", m, "pvalue between", sampleA, "and", sampleB, "is", adonis_pvalue, sep=" "))
+    adonis_pvalue = paste(m, sampleA, sampleB, adonis_pvalue, sep="\t")
+    return(adonis_pvalue)
+  }
+}
+
+
+
+## 3.5 相关评估r2
+lm_eqn <- function(df){
+  m <- lm(y ~ x, df);
+  eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2, 
+                   list(a = format(coef(m)[1], digits = 2), 
+                        b = format(coef(m)[2], digits = 2), 
+                        r2 = format(summary(m)$r.squared, digits = 3)))
+  as.character(as.expression(eq));                 
+}
+
+
+
+## 3.6 样品稀释曲线抽样统计函数 sample rarefracation curve
+
+# 传入参数为OTU表
+
+sample_rare <- function(df){  
+  # Set result as final result
+  result = data.frame(sample = c(0), richness = c(0))
+  # Set inital value of otu table
+  count=df
+  # Set otu table to binary for easy calculate richness
+  count[count>0] = 1
+  # Sample number
+  n = dim(count)[2]
+  
+  # loop for 1 to n samples
+  x = unique(as.integer(seq(1, n, length.out = length)))
+  for (i in x){
+    # i = 15
+    # get combination, need transposition and format to df
+    # combn组合太多，时间过长，如combn(30,15)的数量为choose(30,15)即1.5亿行
+    # list = as.data.frame(t(combn(n, i)))
+    # # if list > 100, only sample 100
+    # if (dim(list)[1] > rep){
+    #   # set seed for repeatable
+    #   set.seed(315)
+    #   # sample to set rep, for reducing time consumming
+    #   idx = sample(dim(list)[1], rep)
+    #   # subset list
+    #   list = list[idx, , drop=F]
+    # }
+    # 
+    # # loop list and calculate richness
+    # for(j in 1:dim(list)[1]) {
+    #   # j = 1
+    #   # subset $j column, dataframe need format into matrix, then vector can as index
+    #   temp = count[, as.vector(as.matrix(list[j,])), drop = F]
+    #   # subset non-zero row
+    #   temp1=temp[rowSums(temp)>0, , drop=F]
+    #   # row number is accumulative OTUs
+    #   result = rbind(result, c(i, dim(temp1)[1]))
+    # }
+    # choose calcuate combn, then sample get list for each rep
+    m = choose(n, i)
+    # if list > 100, only sample 100
+    if (m > rep){
+      m = rep
+    }
+    
+    # loop list and calculate richness
+    for(j in 1:m) {
+      idx = sample(n, i)
+      temp = count[, idx, drop = F]
+      # subset non-zero row
+      temp1=temp[rowSums(temp)>0, , drop=F]
+      # row number is accumulative OTUs
+      result = rbind(result, c(i, dim(temp1)[1]))
+    }
+  }
+  # remove start 0,0
+  result = result[-1,]
+  # factor draw as each box
+  result$sample=as.factor(result$sample, levles=unique(result$sample))
+  return(result)
 }

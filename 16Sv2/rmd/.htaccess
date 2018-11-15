@@ -1,0 +1,6 @@
+
+# AuthName must have, "" not allow blank, not need change
+AuthName "Need user name and password"
+AuthType Basic
+AuthUserFile /mnt/bai/yongxin/bin/config/users
+require valid-user

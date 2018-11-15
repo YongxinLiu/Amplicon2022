@@ -1,0 +1,193 @@
+#!/usr/bin/env Rscript
+# 
+# Copyright 2016-2018 Yong-Xin Liu <metagenome@126.com>
+
+# If used this script, please cited:
+#   Zhang, J., Zhang, N., Liu, Y.X., Zhang, X., Hu, B., Qin, Y., Xu, H., Wang, H., Guo, X., Qian, J., et al. (2018).
+# Root microbiota shift in rice correlates with resident time in the field and developmental stage. Sci China Life Sci 61, 
+# https://doi.org/10.1007/s11427-018-9284-4
+
+# 手动运行脚本请，需要设置工作目录，使用 Ctrl+Shift+H 或 Session - Set Work Directory - Choose Directory / To Source File Location 设置工作目录
+
+# 1.1 程序功能描述和主要步骤
+
+# 程序功能：按丰度筛选OTU，再汇总为各分类级文件，作为STAMP和lefse输入
+# Functions: Boxplot show alpha richness among groups
+# Main steps: 
+# - Reads data table input.txt
+# - Calculate pvalue and save in output.txt
+# - Draw boxplot and save in output.pdf
+
+# 程序使用示例
+# USAGE
+# Default
+# # 显示脚本帮助
+# Rscript ../6script/taxonomy_summary.R -h
+# Rscript ../6script/taxonomy_summary.R -i otutab.txt -t taxonomy8.txt -o lefse
+
+options(warn = -1) # Turn off warning
+
+
+# 1.2 解析命令行
+# 设置清华源加速下载
+site="https://mirrors.tuna.tsinghua.edu.cn/CRAN"
+# 判断命令行解析是否安装，安装并加载
+if (!suppressWarnings(suppressMessages(require("optparse", character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))) {
+  install.packages("optparse", repos=site)
+  require("optparse",character.only=T) 
+}
+# 解析参数-h显示帮助信息
+if (TRUE){
+  option_list <- list(
+    make_option(c("-i", "--input"), type="character", default="result/otutab.txt",
+                help="OTU表 [default %default]"),
+    make_option(c("-t", "--taxonomy"), type="character", default="result/taxonomy_9.txt",
+                help="Taxonomy file; 物种注释，最新9种注释 [default %default]"),
+    make_option(c("-T", "--thre"), type="numeric", default=0.00,
+                help="threshold of abundance; 丰度筛选阈值，如万1 [default %default]"),
+    make_option(c("-d", "--design"), type="character", default="doc/design.txt",
+                help="design file; 实验设计文件 [default %default]"),
+    make_option(c("-n", "--group"), type="character", default="group",
+                help="name of group type; 分组列名 [default %default]"),
+    make_option(c("-o", "--output"), type="character", default="result/tax/count_",
+                help="output directory or prefix; 输出文件前缀 [default %default]")
+  )
+  opts <- parse_args(OptionParser(option_list=option_list))
+  
+  # 调置如果无调设置输出，根据其它参数设置默认输出
+  if (opts$output==""){
+    opts$output=paste(opts$input, "_", opts$thre, sep = "")}
+  
+  # 显示输入输出确认是否正确
+  print(paste("OTU table: ", opts$input,  sep = ""))
+  print(paste("Taxonomy: ", opts$taxonomy,  sep = ""))
+  print(paste("Design:", opts$design,  sep = ""))
+  print(paste("Group name:", opts$group,  sep = ""))
+  print(paste("Abundance threshold: ", opts$thre,  sep = ""))
+  print(paste("Output prefix: ", opts$output, sep = ""))
+}
+# 合并每个级别分类学表
+
+# 0. 安装CRAN来源常用包
+site="https://mirrors.tuna.tsinghua.edu.cn/CRAN"
+package_list <- c("dplyr")
+# 判断R包加载是否成功来决定是否安装后再加载
+for(p in package_list){
+  if(!suppressWarnings(suppressMessages(require(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
+    install.packages(p, repos=site)
+    suppressWarnings(suppressMessages(library(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
+  }
+}
+
+# 1. 读取OTU表
+otutab = read.table(opts$input, header=T, row.names= 1, sep="\t", comment.char = "", stringsAsFactors = F)
+# head(otutab)
+
+# 2. 读取物种注释
+tax = read.table(opts$taxonomy, header=T, row.names= 1, sep="\t",comment.char = "", stringsAsFactors = F) 
+# head(tax)
+
+# 标准化，并筛选高丰度菌均值最小百万分之一0.0001%
+norm = t(t(otutab)/colSums(otutab,na=T))*100
+colSums(norm)
+idx = rowMeans(norm) > opts$thre
+HA = norm[idx,]
+dim(HA)
+if ("raw" == "raw"){
+HA = otutab[idx,]
+}
+# colSums(HA)
+
+# 数据筛选并排序，要求每个OTU必须有注释，可以为空
+tax = tax[rownames(HA),]
+
+# 转换为等级|连接格式
+tax$Phylum=paste(tax$Kingdom,tax$Phylum,sep = "|")
+tax$Class=paste(tax$Phylum,tax$Class,sep = "|")
+tax$Order=paste(tax$Class,tax$Order,sep = "|")
+tax$Family=paste(tax$Order,tax$Family,sep = "|")
+tax$Genus=paste(tax$Family,tax$Genus,sep = "|")
+tax$Species=paste(tax$Genus,tax$Species,sep = "|")
+# head(tax)
+
+# 按Kingdom合并
+grp <- tax[rownames(tax), "Kingdom", drop=F]
+merge=cbind(HA, grp)
+HA_Kingdom = merge %>% group_by(Kingdom) %>% summarise_all(sum)
+colnames(HA_Kingdom)[1]="Kingdom"
+write.table(HA_Kingdom, file=paste(opts$output, "k.txt", sep = ""), append = FALSE, sep="\t", quote=F, row.names=F, col.names=T)
+colnames(HA_Kingdom)[1]="Class"
+
+# 按Phylum合并
+grp <- tax[rownames(tax), "Phylum", drop=F]
+merge=cbind(HA, grp)
+HA_Phylum = merge %>% group_by(Phylum) %>% summarise_all(sum)
+colnames(HA_Phylum)[1]="Phylum"
+write.table(HA_Phylum, file=paste(opts$output, "p.txt", sep = ""), append = FALSE, sep="\t", quote=F, row.names=F, col.names=T)
+colnames(HA_Phylum)[1]="Class"
+
+# 按Class合并
+grp <- tax[rownames(tax), "Class", drop=F]
+merge=cbind(HA, grp)
+HA_Class = merge %>% group_by(Class) %>% summarise_all(sum)
+colnames(HA_Class)[1]="Class"
+write.table(HA_Class, file=paste(opts$output, "c.txt", sep = ""), append = FALSE, sep="\t", quote=F, row.names=F, col.names=T)
+colnames(HA_Class)[1]="Class"
+
+# 按Order合并
+grp <- tax[rownames(tax), "Order", drop=F]
+merge=cbind(HA, grp)
+HA_Order = merge %>% group_by(Order) %>% summarise_all(sum)
+colnames(HA_Order)[1]="Order"
+write.table(HA_Order, file=paste(opts$output, "o.txt", sep = ""), append = FALSE, sep="\t", quote=F, row.names=F, col.names=T)
+colnames(HA_Order)[1]="Class"
+
+# 按Family合并
+grp <- tax[rownames(tax), "Family", drop=F]
+merge=cbind(HA, grp)
+HA_Family = merge %>% group_by(Family) %>% summarise_all(sum)
+colnames(HA_Family)[1]="Family"
+write.table(HA_Family, file=paste(opts$output, "f.txt", sep = ""), append = FALSE, sep="\t", quote=F, row.names=F, col.names=T)
+colnames(HA_Family)[1]="Class"
+
+# 按Genus合并
+grp <- tax[rownames(tax), "Genus", drop=F]
+merge=cbind(HA, grp)
+HA_Genus = merge %>% group_by(Genus) %>% summarise_all(sum)
+colnames(HA_Genus)[1]="Genus"
+write.table(HA_Genus, file=paste(opts$output, "g.txt", sep = ""), append = FALSE, sep="\t", quote=F, row.names=F, col.names=T)
+colnames(HA_Genus)[1]="Class"
+
+# 按Species合并
+grp <- tax[rownames(tax), "Species", drop=F]
+merge=cbind(HA, grp)
+HA_Species = merge %>% group_by(Species) %>% summarise_all(sum)
+colnames(HA_Species)[1]="Species"
+write.table(HA_Species, file=paste(opts$output, "s.txt", sep = ""), append = FALSE, sep="\t", quote=F, row.names=F, col.names=T)
+colnames(HA_Species)[1]="Class"
+
+# # 按Phlyum + Proteobactera Class (PC)合并，此步分析taxonomy必须有9列PC列
+# grp <- tax[rownames(tax), "PC", drop=F]
+# merge=cbind(HA, grp)
+# HA_Species = merge %>% group_by(PC) %>% summarise_all(sum)
+# colnames(HA_Species)[1]="PC"
+# write.table(HA_Species, file=paste(opts$output, "pc.txt", sep = ""), append = FALSE, sep="\t", quote=F, row.names=F, col.names=T)
+# colnames(HA_Species)[1]="Class"
+
+# 合并6个分类级
+all = rbind(HA_Kingdom, HA_Phylum, HA_Class, HA_Order, HA_Family, HA_Genus) # , HA_Species
+
+# 读取实验设计
+design = read.table(opts$design, header=T, row.names= 1, sep="\t", comment.char = "", stringsAsFactors = F) 
+
+# 将选定的分组列统一命名为group
+design$group=design[,opts$group]
+
+# 修改样品名为组名
+# 删除结尾的数字，兼容性不好
+# colnames(all) = gsub("\\d+$","",colnames(all),perl=TRUE)
+# 用实验设计中的group列替换样品名
+colnames(all)[2:dim(all)[2]] = design[colnames(all)[2:dim(all)[2]],]$group
+
+# 保存结果为lefse
+write.table(all, file=paste(opts$output, "_lefse.txt", sep = ""), append = FALSE, sep="\t", quote=F, row.names=F, col.names=T)

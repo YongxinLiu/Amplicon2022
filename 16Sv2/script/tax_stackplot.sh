@@ -243,7 +243,7 @@ for(m in method){
 
 	# 保存变量备份，并输出至文件
 	merge_tax=mean_sort
-	write.table("\t", file=paste("${output}", m, "_sample.txt",sep=""),append = F, quote = F, eol = "", row.names = F, col.names = F)
+	write.table("Taxonomy\t\t", file=paste("${output}", m, "_sample.txt",sep=""),append = F, quote = F, eol = "", row.names = F, col.names = F)
 	suppressWarnings(write.table(merge_tax, file=paste("${output}", m, "_sample.txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T))
 
 	# 提取样品组信息,默认为genotype可指定
@@ -289,8 +289,8 @@ for(m in method){
 
 	# 保存变量备份，并输出至文件
 	mean_sort=as.data.frame(mat_mean_final)
-	write.table("\t", file=paste("${output}", m, "_group.txt",sep=""),append = F, quote = F, eol = "", row.names = F, col.names = F)
-	suppressWarnings(write.table(merge_tax, file=paste("${output}", m, "_group.txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T))
+	write.table("Taxonomy\t", file=paste("${output}", m, "_group.txt",sep=""),append = F, quote = F, eol = "", row.names = F, col.names = F)
+	suppressWarnings(write.table(mean_sort, file=paste("${output}", m, "_group.txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T))
 
 	# 数据转换长表格并绘图
 	mean_sort\$tax = rownames(mean_sort)

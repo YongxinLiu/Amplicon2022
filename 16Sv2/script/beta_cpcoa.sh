@@ -287,7 +287,7 @@ for(m in method){
 	p
 	# 保存pdf和png格式方便查看和编辑
 	# 保存pdf和png格式方便查看和编辑
-	ggsave(paste("${output}cpcoa_", m, "_label.pdf", sep=""), p, width = $width, height = $height)
+	ggsave(paste("${output}cpcoa_", m, "_label.pdf", sep=""), p, width = $width*2, height = $height*2)
 #	ggsave(paste("${output}cpcoa_", m, "_label.png", sep=""), p, width = $width, height = $height)
 	# 提示工作完成
 	print(paste("Output in ${output}cpcoa_", m, "_label.pdf finished.", sep = ""))
