@@ -254,7 +254,12 @@ x = input
 x\$tax = x\$Phylum# factor(x\$Phylum, levels=c(as.vector(unique(x\$Phylum)),"Low Abundance"))
 # 将门中 proteobacteria 替换为纲
 x[x\$tax %in% "Proteobacteria",]\$tax =  x[x\$tax %in% "Proteobacteria",]\$Class # no level can get value
+
+# 判断是否有需要替换为低丰度的类，没有报错的解决
+if (length(x[!(x\$tax %in% top_tax),]\$tax > 0)){
 x[!(x\$tax %in% top_tax),]\$tax = "Low Abundance" # no level can get value
+}
+
 # 颜色还是不能保证一致，因为不同组门数量不同？？
 x\$tax = factor(x\$tax, levels=sort(c(top_tax,"Low Abundance")))
 

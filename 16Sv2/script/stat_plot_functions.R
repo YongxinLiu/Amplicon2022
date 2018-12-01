@@ -354,3 +354,35 @@ sample_rare <- function(df){
   result$sample=as.factor(result$sample, levles=unique(result$sample))
   return(result)
 }
+
+
+
+# 基于数据框，默认的group列和批量的m列绘制箱线图+统计
+
+boxplot_anova <- function(index, m){  
+  # boxplot stat code
+model = aov(index[[m]] ~ group, data=index)
+Tukey_HSD = TukeyHSD(model, ordered = TRUE, conf.level = 0.95)
+Tukey_HSD_table = as.data.frame(Tukey_HSD$group) 
+# write.table(paste(m, "\n\t", sep=""), file=paste(wd, b, m,  ".txt",sep=""),append = F, quote = F, eol = "", row.names = F, col.names = F)
+# suppressWarnings(write.table(Tukey_HSD_table, file=paste(wd, b, m,".txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T))
+
+out = LSD.test(model,"group", p.adj="none") # alternative fdr
+stat = out$groups
+index$stat=stat[as.character(index$group),]$groups
+max=max(index[,c(m)])
+min=min(index[,c(m)])
+x = index[,c("group",m)]
+y = x %>% group_by(group) %>% summarise_(Max=paste('max(',m,')',sep=""))
+y=as.data.frame(y)
+rownames(y)=y$group
+index$y=y[as.character(index$group),]$Max + (max-min)*0.05
+
+p = ggplot(index, aes(x=group, y=index[[m]], color=group)) +
+  geom_boxplot(alpha=1, outlier.size=0, size=0.7, width=0.5, fill="transparent") +
+  labs(x="Groups", y=paste(m, "")) + theme_classic() + main_theme +
+  geom_text(data=index, aes(x=group, y=y, color=group, label= stat)) +
+  geom_jitter( position=position_jitter(0.17), size=1, alpha=0.7)+theme(legend.position="none")
+if (length(unique(index$group))>3){	p=p+theme(axis.text.x=element_text(angle=45,vjust=1, hjust=1))}
+p
+}

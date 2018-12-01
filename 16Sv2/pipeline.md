@@ -110,6 +110,7 @@ sample_merge: library_split_stat
 		-fastqout seq/merge/{1}.fq -relabel {1}. -threads 1" ::: `tail -n+2 doc/design.txt | cut -f 1`
 	# 合并所有双端合并的样品
 	cat seq/merge/* > seq/all.fq
+	# 报错时，末知原因可把代码输出后再运行检查
 
 sample_merge_stat: sample_merge
 	touch $@
@@ -160,7 +161,7 @@ otu_pick: fa_unqiue
 	echo -e "OTU method\t${otu_method}" >> ${otu_log}
 ifeq (${otu_method}, unoise3)
 	# 类似100%聚类，只去除嵌合体和扩增及错误，保留所有高丰度序列
-	usearch10 -unoise3 temp/uniques.fa -zotus temp/Zotus.fa -minsize ${minuniquesize} -threads ${p}
+	usearch10 -unoise3 temp/uniques.fa -zotus temp/Zotus.fa -minsize ${minuniquesize}
 else ifeq (${otu_method}, cluster_otus)
 	# cluster_otus无法修改聚类参数，想使用不同聚类相似度，使用cluster_smallmem命令
 	usearch10 -cluster_otus temp/uniques.fa -otus temp/Zotus.fa
@@ -465,6 +466,7 @@ beta_pcoa2: beta_calc2
 
 	# 完成大数据分析后，有太多临时文件，需要清楚节约空间
 clean:
+	pigz seq/L*.fq
 	rm -r temp/
 
 
@@ -546,7 +548,8 @@ DA_compare: tax_stackplot
 	compare_OTU.sh -i ${Dc_input} -c ${Dc_compare} -m ${Dc_method} \
 		-p ${Dc_pvalue} -q ${Dc_FDR} -F ${Dc_FC} -t ${abundance_thre} \
 		-d ${Dc_design} -A ${Dc_group_name} -B ${Dc_group_list} \
-		-o ${Dc_output} -C ${Dc_group_name2}
+		-o ${Dc_output} #  -C ${Dc_group_name2}
+
 ### 计算门纲目科属水平秩合检验差异，绘图维恩图，并对维恩图中各部分进行重叠
 DA_compare_tax: tax_stackplot
 	touch $@

@@ -330,7 +330,7 @@ SHELL:=/bin/bash
 	cluster_cols=TRUE
 
 ## 2.9 plot_manhattan 绘制OTU按门着色曼哈顿图
-	pm_yax=10
+	pm_yax=20
 
 ## 2.10 plot_boxplot 基于差异OTU表绘制火山图
 	pb_input=result/otutab.txt
@@ -365,8 +365,9 @@ SHELL:=/bin/bash
 ## 3.9 culture 可培养菌
 	 
 	# 可培养菌库类型，如组织root / rhizosphere / leaf, 品种A50 / IR24
+	# 拟南芥填 Root
 	type=""
-	# 指定可培养菌库位置，fa为OTU，fasta为物种如rice
+	# 指定可培养菌库位置，fa为OTU，fasta为物种如rice, ath
 	culture_db=/mnt/bai/yongxin/culture/rice/result/${type}culture_select.fasta
 	# 可培养菌结果输出文件
 	# 绘制Graphlan图的筛选阈值
