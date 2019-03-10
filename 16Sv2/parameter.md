@@ -83,7 +83,7 @@ SHELL:=/bin/bash
 ## 1.9. host_rm 去宿主
 
 	# Remove host original sequences
-	# 去宿主方法选择 blast / sintax_gg / sintax_silva，推荐：sintax_silva
+	# 去宿主方法选择 blast / sintax_gg / sintax_silva / sintax_silva_its / sintax_unite / none，推荐：sintax_silva
 	host_method=sintax_silva
 	# 方法1. blast宿主基因组(含叶绿体/线粒体)去除同源序列，如水稻微生物，需要提供水稻基因组；可调相似度和覆盖度的阈值(百分数)
 	host=/mnt/bai/public/ref/rice/msu7/all.con
@@ -371,7 +371,18 @@ SHELL:=/bin/bash
 	culture_db=/mnt/bai/yongxin/culture/rice/result/${type}culture_select.fasta
 	# 可培养菌结果输出文件
 	# 绘制Graphlan图的筛选阈值
-	culture_thre=0.0005
+	graph_thre=0.001
+	filter=culture_${type}
+	# 过滤方法，默认median，可选max, mean, median, min，数据依次减少
+	filter_method=max
+	otu_table=`pwd`/result/otutab.txt
 
+	# 指定具体的实验设计、列、组筛选
+	cg_design=${design}
+	cg_group_name=${g1}
+	cg_group_list=${ab_group_list}
+#	cg_design=`pwd`/doc/b23r/design.txt
+#	cg_group_name=genotype
+#	cg_group_list='"R108"'
 
 include /mnt/bai/yongxin/github/Amplicon/16Sv2/pipeline.md

@@ -262,8 +262,8 @@ for(m in method){
 
 	# plot PC 1 and 2
 	p = ggplot(points, aes(x=PC1, y=PC2, color=group)) + geom_point(alpha=.7, size=2) +
-		labs(x=paste("PCoA 1 (", format(100 * eig[1] / sum(eig), digits=4), "%)", sep=""),
-		y=paste("PCoA 2 (", format(100 * eig[2] / sum(eig), digits=4), "%)", sep=""),
+		labs(x=paste("PCo 1 (", format(100 * eig[1] / sum(eig), digits=4), "%)", sep=""),
+		y=paste("PCo 2 (", format(100 * eig[2] / sum(eig), digits=4), "%)", sep=""),
 		title=paste(m," PCoA",sep="")) + theme_classic()
 
 	# 是否添加置信椭圆
@@ -289,8 +289,8 @@ for(m in method){
 
 	# plot PC 3 and 4
 	p = ggplot(points, aes(x=PC3, y=PC4, color=group)) + geom_point(alpha=.7, size=2) +
-		labs(x=paste("PCoA 3 (", format(100 * eig[3] / sum(eig), digits=4), "%)", sep=""),
-		y=paste("PCoA 4 (", format(100 * eig[4] / sum(eig), digits=4), "%)", sep=""),
+		labs(x=paste("PCo 3 (", format(100 * eig[3] / sum(eig), digits=4), "%)", sep=""),
+		y=paste("PCo 4 (", format(100 * eig[4] / sum(eig), digits=4), "%)", sep=""),
 		title=paste(m," PCoA",sep="")) + theme_classic()
 	# 是否添加置信椭圆
 	if (${ellipse}){p = p + stat_ellipse(level=0.68)}

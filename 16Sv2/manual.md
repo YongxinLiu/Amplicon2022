@@ -1,6 +1,8 @@
 
 	# 快速分析 Quick Start(所需文件准备好)
-	make fq_qc # 样本拆分、合并、去接头和引物、质控，获得纯净扩增子序列temp/filtered.fa
+	find . -name "*" -type f -size 0c | xargs -n 1 rm -f # 清理零字节文件，用于从头重新分析项目清空makefile点位文件
+	make library_split # 样本拆分、
+	make fq_qc # 合并、去接头和引物、质控，获得纯净扩增子序列temp/filtered.fa
 	make host_rm # 序列去冗余、去噪、挑选代表序列、去嵌合、去宿主，获得OTU代表序列result/otu.fa
 	make beta_calc # 生成OTU表、过滤、物种注释、建库和多样性统计
 	# 清除统计绘图标记(重分析时使用)
@@ -36,9 +38,10 @@
 	make init
 
 	# 保存模板中basic页中3. 测序文库列表library为doc/library.txt
+	sed -i 's/\t/\tL171121_/' doc/library.txt # time check SeqLibraryList.xlsx
 	# 按library中第二列index准备测序文库，如果压缩要添加.gz，并用gunzip解压
-	awk 'BEGIN{OFS=FS="\t"}{system("ln -s /mnt/bai/yongxin/seq/181009.lane14/"$4"_1.fq.gz seq/"$1"_1.fq.gz");}' <(tail -n+2 doc/library.txt )
-	awk 'BEGIN{OFS=FS="\t"}{system("ln -s /mnt/bai/yongxin/seq/181009.lane14/"$4"_2.fq.gz seq/"$1"_2.fq.gz");}' <(tail -n+2 doc/library.txt )
+	awk 'BEGIN{OFS=FS="\t"}{system("ln -s /mnt/bai/yongxin/seq/BGI/"$2"_1.fq.gz seq/"$1"_1.fq.gz");}' <(tail -n+2 doc/library.txt )
+	awk 'BEGIN{OFS=FS="\t"}{system("ln -s /mnt/bai/yongxin/seq/BGI/"$2"_2.fq.gz seq/"$1"_2.fq.gz");}' <(tail -n+2 doc/library.txt )
     # 检查数据链接，全红为错误，绿色为正常
     ll seq/*
 	# 如果压缩文件，要强制解压链接

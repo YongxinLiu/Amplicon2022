@@ -35,7 +35,8 @@ ymax=20 # manhattan plot ylab max size
 fold_max=4 # fold change max for volcano plot
 # style include css, percentage, rpm default none
 style=none
-top_tax=13
+# 调整图例数量，9与stackplot一致
+top_tax=9
 culture='FALSE'
 
 # Function for script description and usage
@@ -285,7 +286,8 @@ p = ggplot(x, aes(x=num, y=neglogp, color=tax, size=logCPM, shape=level)) +
   labs(x="Taxonomy of OTUs", y="-log10(P)", title=paste("${input}", sep=" ")) +main_theme +
   theme(legend.position="top") +
   scale_x_continuous(breaks=mat_mean\$x, labels=mat_mean\$tax) + 
-  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1))
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  ylim(0,${ymax})
 p
 ggsave(file=paste("${input}_man_pc.pdf", sep=""), p, width = ${width}, height = ${height}, useDingbats=F)
 ggsave(file=paste("${input}_man_pc.png", sep=""), p, width = ${width}, height = ${height})

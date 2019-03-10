@@ -264,9 +264,9 @@ if ($select1){
 }
 
 # 读取OTU表
-otutab = read.table(paste("${input}", sep=""), header=T, row.names=1, sep="\t", comment.char="") 
-# 显示OTU问题
-print("Total OTUs number")
+otutab = read.table(paste("${input}", sep=""), header=T, row.names=1, quote = "", sep="\t", comment.char="") 
+# Show features (include OTU/ASV/Taxonomy) numbers
+print("Total features number")
 print(dim(otutab)[1])
 
 # 实验设计与输入文件交叉筛选
@@ -300,10 +300,12 @@ otutab = otutab[rownames(filtered),]
 # 生成compare的database用于注释
 mat_mean_high = mat_mean_final[rownames(filtered),]
 write.table(paste("OTUID\t",sep=""), file=paste("${output}", "database.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
-suppressWarnings(write.table(round(mat_mean_high*100,3), file=paste("${output}", "database.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
+suppressWarnings(write.table(round(mat_mean_high,5), file=paste("${output}", "database.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
 
 print("Selected high abundance OTUs number")
 print(dim(mat_mean_high)[1])
+
+print(colSums(mat_mean_high))
 
 END
 
@@ -411,15 +413,17 @@ compare_DA = function(compare){
 	SampAvsB=paste(group_list[1] ,"-", group_list[2], sep="")
 	idx = design\$group %in% group_list
 	sub_design=design[idx, , drop = F]
-	sub_dat=as.matrix(otutab[,rownames(sub_design)])
-
-	# wilcoxon秩合检验，需要先标准化
-	# normlization to percentage
-	if (${normalization}){
-		sub_norm = t(t(sub_dat)/colSums(sub_dat,na=T))*100
-	}else{
-		sub_norm = as.matrix(otutab) * ${unit} # 数据类型一致，计算后矩阵
-	}
+#	sub_dat=as.matrix(otutab[,rownames(sub_design)])
+#
+#	# wilcoxon秩合检验，需要先标准化
+#	# normlization to percentage
+#	if (${normalization}){
+#		sub_norm = t(t(sub_dat)/colSums(sub_dat,na=T))*100
+#	}else{
+#		sub_norm = as.matrix(otutab) * ${unit} # 数据类型一致，计算后矩阵
+#	}
+    norm = as.data.frame(t(norm))
+    sub_norm = as.matrix(norm[rownames(filtered),])
 	# 建立两组的矩阵
 	idx = sub_design\$group %in% group_list[1]
 	GroupA = sub_norm[,rownames(sub_design[idx,,drop=F])]

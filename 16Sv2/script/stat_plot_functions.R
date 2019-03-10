@@ -24,8 +24,8 @@ for(p in package_list){
 }
 
 ## 1.2 安装bioconductor常用包
-  
-package_list = c("digest", "ggrepel")
+ 
+package_list = c("ggrepel")
 for(p in package_list){
   if(!suppressWarnings(suppressMessages(require(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
     source("https://bioconductor.org/biocLite.R")
@@ -294,49 +294,35 @@ lm_eqn <- function(df){
 
 # 传入参数为OTU表
 
-sample_rare <- function(df){  
+sample_rare <- function(df, count_cutoff =3, length = 30, rep = 30){  
+  # 小于一定频率是认为是噪间 set threshold to distinguish noise, default cutoff = 3, min 1, max 30
+  # count_cutoff = 3
+  # loop for 1 to n samples, set length
+  # length = 30
+  # if combo > 30, only sample 30 times to reduce calculate
+  # rep = 30
+  
   # Set result as final result
   result = data.frame(sample = c(0), richness = c(0))
   # Set inital value of otu table
   count=df
   # Set otu table to binary for easy calculate richness
-  count[count>0] = 1
+  
+  count[count < count_cutoff] = 0
+  count[count >= count_cutoff] = 1
   # Sample number
   n = dim(count)[2]
   
-  # loop for 1 to n samples
   x = unique(as.integer(seq(1, n, length.out = length)))
   for (i in x){
-    # i = 15
+    # i = 1
     # get combination, need transposition and format to df
     # combn组合太多，时间过长，如combn(30,15)的数量为choose(30,15)即1.5亿行
     # list = as.data.frame(t(combn(n, i)))
-    # # if list > 100, only sample 100
-    # if (dim(list)[1] > rep){
-    #   # set seed for repeatable
-    #   set.seed(315)
-    #   # sample to set rep, for reducing time consumming
-    #   idx = sample(dim(list)[1], rep)
-    #   # subset list
-    #   list = list[idx, , drop=F]
-    # }
-    # 
-    # # loop list and calculate richness
-    # for(j in 1:dim(list)[1]) {
-    #   # j = 1
-    #   # subset $j column, dataframe need format into matrix, then vector can as index
-    #   temp = count[, as.vector(as.matrix(list[j,])), drop = F]
-    #   # subset non-zero row
-    #   temp1=temp[rowSums(temp)>0, , drop=F]
-    #   # row number is accumulative OTUs
-    #   result = rbind(result, c(i, dim(temp1)[1]))
-    # }
+
     # choose calcuate combn, then sample get list for each rep
     m = choose(n, i)
-    # if list > 100, only sample 100
-    if (m > rep){
-      m = rep
-    }
+    if (m > rep){m = rep}
     
     # loop list and calculate richness
     for(j in 1:m) {
@@ -351,7 +337,7 @@ sample_rare <- function(df){
   # remove start 0,0
   result = result[-1,]
   # factor draw as each box
-  result$sample=as.factor(result$sample, levles=unique(result$sample))
+  result$sample = factor(result$sample, levels = unique(result$sample))
   return(result)
 }
 
@@ -383,6 +369,48 @@ p = ggplot(index, aes(x=group, y=index[[m]], color=group)) +
   labs(x="Groups", y=paste(m, "")) + theme_classic() + main_theme +
   geom_text(data=index, aes(x=group, y=y, color=group, label= stat)) +
   geom_jitter( position=position_jitter(0.17), size=1, alpha=0.7)+theme(legend.position="none")
-if (length(unique(index$group))>3){	p=p+theme(axis.text.x=element_text(angle=45,vjust=1, hjust=1))}
+if (length(unique(index$group))>5){	p=p+theme(axis.text.x=element_text(angle=45,vjust=1, hjust=1))}
 p
+}
+
+
+# 单列数据绘制饼形图，要求列V1为名称，V2为数值
+
+plot_pie <- function(df, width, threshold){  
+  # 绘制柱状图、饼图代码
+  data = df
+  colnames(data)=c("class", "CK")
+  # 生成自定义图例标签，在标签上显示百分比；
+  lab1 =as.vector(data$class)
+  lab1
+  lab1 =paste(lab1, "(", round(data$CK, 2), ")",sep = "") # /sum(data$CK)*100 # "%)"
+  lab1
+  # 生成仅有“百分比”的数据标签，并将数值小于5%的标签设置为“空”，避免占比较小的区域标签互相重叠；
+  lab2<-round(data$CK/sum(data$CK)*100,1)
+  lab2
+  n<-length(lab2)
+  n
+  for(i in 1: n){
+    if(as.numeric(lab2[i])< threshold )
+      lab2[i]<-""
+    else
+      lab2[i]<-paste(lab2[i],"%",sep= "")
+  }
+  lab2
+  # 绘制堆叠条形图，设置条形图的“边框”为白色；
+  # p1<-ggplot(data=data,aes(x="",y=data$CK,fill=(data$class)))+geom_bar(stat="identity",width=0.4,color="white",linetype=1,size=1)
+  # p1
+  # #添加百分比标签；
+  # p2<-p1+geom_text(aes(x=1,label=lab2),position= position_stack(reverse =F,vjust=0.5),size=6)
+  # p2
+  # coord_polar()将直角坐标系转为极坐标系；
+  p3<-ggplot(data=data,aes(x="",y=data$CK,fill=data$class))+ geom_bar(stat="identity",width=width,color="white",linetype=1,size=1)+coord_polar(theta="y") +labs(x="",y="",title="")
+  p3<-p3+geom_text(aes(x=1.25,label=lab2),position= position_stack(reverse =F,vjust=0.5),size=4)
+  # vjust的值取 0位于底部，0.5中间， 1 (the default) 在上部；
+  # p3
+  # 更改图表的主题，去掉横纵坐标标题，添加图片标题，将背景改为白色，图列位置（这里仍保持右侧）；
+  p4<-p3+theme_bw() +  theme(axis.text=element_blank(),panel.border=element_blank(),axis.ticks=element_blank(),        panel.grid=element_blank(),legend.title= element_blank(), legend.position = "right") +
+    # 更新为自定义的图例标签，使标签显示百分比；
+    scale_fill_discrete(breaks= data$class, labels = lab1)
+  p4
 }

@@ -56,6 +56,7 @@ Version 1.3 2018/5/24
 Add matrix normalization paramter, default TRUE, can trun off
 Version 1.4 2018/6/13
 添加维恩列表初始化为空，和结束时简化；OTU丰度筛选可修改为不同组
+2019/1/5 按指定的OTU列表进行差异比较，解决不同批次无法一致的问题？
 
 # All input and output should be in default directory, or give relative or absolute path by -i/-d
 
@@ -103,7 +104,7 @@ EOF
 
 
 # 参数解析 Analysis parameter
-while getopts "c:d:e:h:i:m:n:o:p:q:s:t:w:A:B:C:F:O:N:U:" OPTION
+while getopts "c:d:e:h:i:m:n:o:p:q:r:s:t:w:A:B:C:F:O:N:U:" OPTION
 do
 	case $OPTION in
 		c)
@@ -135,6 +136,9 @@ do
 			;;
 		q)
 			FDR=$OPTARG
+			;;
+		r)
+			ref=$OPTARG
 			;;
 		s)
 			text_size=$OPTARG
@@ -264,7 +268,7 @@ if ($select1){
 }
 
 # 读取OTU表
-otutab = read.table(paste("${input}", sep=""), header=T, row.names=1, sep="\t", comment.char="") 
+otutab = read.table(paste("${input}", sep=""), header=T, row.names=1, quote = "", sep="\t", comment.char="") 
 # 显示OTU问题
 print("Total OTUs number")
 print(dim(otutab)[1])
@@ -274,9 +278,6 @@ idx = rownames(design) %in% colnames(otutab)
 design = design[idx, , drop = F]
 otutab = otutab[,rownames(design)]
 
-# 检查样品标准化方式，通常有1，百分比，RPM等
-colSums(otutab)
-
 # 按丰度值按组中位数筛选OTU
 # 标准化为百分比例，并转置
 if (${normalization}){
@@ -285,8 +286,8 @@ if (${normalization}){
 	# 非标准化时为，默认抽样10000，除以100标准为百分比
 	norm=t(otutab)*${unit}
 }
-# 筛选组, 需要按第二条件筛选时使用
-# grp = design[, "${g2}", drop=F]
+# 筛选组信
+# grp = design[, "${g2}", drop=F] # 需要按第二条件筛选时使用
 grp = design[, "group", drop=F]
 # 按行名合并
 mat_t2 = merge(grp, norm, by="row.names")
@@ -297,7 +298,8 @@ mat_mean_final = do.call(rbind, mat_mean)[-1,]
 geno = mat_mean\$group
 colnames(mat_mean_final) = geno
 # 按丰度按组中位数筛选
-filtered = mat_mean_final[apply(mat_mean_final,1,max) >= ${abundance_threshold}, ] # select OTU at least one sample > 0.1%
+#filtered = mat_mean_final[apply(mat_mean_final,1,max) >= ${abundance_threshold}, ] # select OTU at least one sample > 0.1%
+filtered = read.table(paste("${ref}", sep=""), header=T, row.names=1, quote = "", sep="\t", comment.char="") 
 otutab = otutab[rownames(filtered),]
 
 # 生成compare的database用于注释
@@ -308,7 +310,7 @@ suppressWarnings(write.table(round(mat_mean_high,5), file=paste("${output}", "da
 print("Selected high abundance OTUs number")
 print(dim(mat_mean_high)[1])
 
-print(colSums(mat_mean_high))
+colSums(mat_mean_high)
 
 END
 
@@ -368,7 +370,7 @@ compare_DA = function(compare){
 	B_mean = as.data.frame(rowMeans(B_norm))
 	colnames(B_mean)=c("MeanB")
 	# merge and reorder
-	Mean = round(cbind(A_mean, B_mean, A_norm, B_norm),7)
+	Mean = round(cbind(A_mean, B_mean, A_norm, B_norm),3)
 	Mean = Mean[rownames(nrDAO),]
 
 	# 存在物种注释，添加至Mean前
@@ -416,17 +418,17 @@ compare_DA = function(compare){
 	SampAvsB=paste(group_list[1] ,"-", group_list[2], sep="")
 	idx = design\$group %in% group_list
 	sub_design=design[idx, , drop = F]
-#	sub_dat=as.matrix(otutab[,rownames(sub_design)])
-#
-#	# wilcoxon秩合检验，需要先标准化
-#	# normlization to percentage
-#	if (${normalization}){
-#		sub_norm = t(t(sub_dat)/colSums(sub_dat,na=T))*100
-#	}else{
-#		sub_norm = as.matrix(otutab) * ${unit} # 数据类型一致，计算后矩阵
-#	}
-    norm = as.data.frame(t(norm))
-    sub_norm = as.matrix(norm[rownames(filtered),])
+	sub_dat=as.matrix(otutab[,rownames(sub_design)])
+
+	# wilcoxon秩合检验，需要先标准化
+	# normlization to percentage
+	if (${normalization}){
+		sub_norm = t(t(sub_dat)/colSums(sub_dat,na=T))*100
+	}else{
+		sub_norm = as.matrix(otutab) * ${unit} # 数据类型一致，计算后矩阵
+	}
+#    norm = as.data.frame(t(norm))
+#    sub_norm = as.matrix(norm[rownames(filtered),])
 	# 建立两组的矩阵
 	idx = sub_design\$group %in% group_list[1]
 	GroupA = sub_norm[,rownames(sub_design[idx,,drop=F])]
@@ -437,7 +439,7 @@ compare_DA = function(compare){
 	# 对每行OUT/基因进行秩合检验
 	# dim(nrDAO)[1]
 	for ( i in 1:dim(nrDAO)[1]){
-		FC = (mean(GroupA[i,])+0.0000001)/(mean(GroupB[i,])+0.0000001)
+		FC = (mean(GroupA[i,])+0.0001)/(mean(GroupB[i,])+0.0001)
 		nrDAO[i,2]=log2(FC)
 		nrDAO[i,3]=log2(max(c(GroupA[i,],GroupB[i,]))*10000)
 		nrDAO[i,4]= wilcox.test(as.numeric(GroupA[i,]),as.numeric(GroupB[i,]))\$p.value
@@ -465,7 +467,7 @@ compare_DA = function(compare){
 	B_mean = as.data.frame(rowMeans(B_norm))
 	colnames(B_mean)=c("MeanB")
 	# merge and reorder
-	Mean = round(cbind(A_mean, B_mean, A_norm, B_norm),7)
+	Mean = round(cbind(A_mean, B_mean, A_norm, B_norm),3)
 	Mean = Mean[rownames(nrDAO),]   
 
 	# 存在物种注释，添加至Mean前
@@ -502,13 +504,13 @@ compare_DA = function(compare){
 
 END
 
-elif [ $method = "ttest" ]; then
+elif [ $method = "t.test" ]; then
 	
 cat <<END >>script/compare.R
-print(paste("你正在使用t检验！Now, you are using t-test!", sep=" "))
+print(paste("你正在使用秩和检验！Now, you are using wilcoxon test!", sep=" "))
 
 compare_DA = function(compare){
-	# 筛选比较组wilcox
+	# 筛选比较组t.test
 	group_list = as.vector(as.matrix(compare))
 	SampAvsB=paste(group_list[1] ,"-", group_list[2], sep="")
 	idx = design\$group %in% group_list
@@ -532,7 +534,7 @@ compare_DA = function(compare){
 	# 对每行OUT/基因进行秩合检验
 	# dim(nrDAO)[1]
 	for ( i in 1:dim(nrDAO)[1]){
-		FC = (mean(GroupA[i,])+0.0000001)/(mean(GroupB[i,])+0.0000001)
+		FC = (mean(GroupA[i,])+0.0001)/(mean(GroupB[i,])+0.0001)
 		nrDAO[i,2]=log2(FC)
 		nrDAO[i,3]=log2(max(c(GroupA[i,],GroupB[i,]))*10000)
 		nrDAO[i,4]= t.test(as.numeric(GroupA[i,]),as.numeric(GroupB[i,]))\$p.value
@@ -560,7 +562,7 @@ compare_DA = function(compare){
 	B_mean = as.data.frame(rowMeans(B_norm))
 	colnames(B_mean)=c("MeanB")
 	# merge and reorder
-	Mean = round(cbind(A_mean, B_mean, A_norm, B_norm),7)
+	Mean = round(cbind(A_mean, B_mean, A_norm, B_norm),3)
 	Mean = Mean[rownames(nrDAO),]   
 
 	# 存在物种注释，添加至Mean前

@@ -102,14 +102,16 @@ library_split_stat: library_split
 
 ## 1.3 双端序列合并 Merge pair-end reads
 
-sample_merge: library_split_stat
+sample_merge: 
 	touch $@
 	# 双端序列合并
-	mkdir -p seq/merge
+	mkdir -p temp/merge
 	parallel -j ${p} "usearch10 -fastq_mergepairs seq/sample/{1}_1.fq -reverse seq/sample/{1}_2.fq \
-		-fastqout seq/merge/{1}.fq -relabel {1}. -threads 1" ::: `tail -n+2 doc/design.txt | cut -f 1`
+		-fastqout temp/merge/{1}.fq -relabel {1}. -threads 1" ::: `tail -n+2 doc/design.txt | cut -f 1`
 	# 合并所有双端合并的样品
-	cat seq/merge/* > seq/all.fq
+	cat temp/merge/* > temp/all.fq
+	pigz seq/sample/*.fq
+	# rm seq/*.fq
 	# 报错时，末知原因可把代码输出后再运行检查
 
 sample_merge_stat: sample_merge
@@ -118,14 +120,13 @@ sample_merge_stat: sample_merge
 	rm -f ${sample_merge}
 	touch ${sample_merge}
 	for s in `tail -n+2 doc/design.txt | cut -f 1 | tr '\n' ' '`; do \
-	echo -ne "$${s}\t" >> ${sample_merge}; wc -l seq/merge/$${s}.fq | awk '{print $$1/4}' >> ${sample_merge}; done
-
+	echo -ne "$${s}\t" >> ${sample_merge}; wc -l temp/merge/$${s}.fq | awk '{print $$1/4}' >> ${sample_merge}; done
 
 ## 1.4 切除引物 Cut primers and quality filter
 # Cut barcode 10bp + V5 19bp in left and V7 18bp in right
 fq_trim: sample_merge_stat
 	touch $@
-	usearch10 -fastx_truncate seq/all.fq \
+	usearch10 -fastx_truncate temp/all.fq \
 		-stripleft ${stripleft} -stripright ${stripright} \
 		-fastqout temp/stripped.fq 
 
@@ -212,7 +213,7 @@ else ifeq (${host_method}, sintax_gg)
 		-tabbedout temp/otus_no_chimeras.tax -threads ${p}
 	grep -P -v 'mitochondria|Chloroplast|\t$$' temp/otus_no_chimeras.tax | cut -f 1 > temp/otus_no_host.id
 else ifeq (${host_method}, sintax_silva)
-	# 方法3. 基于silva132的usearch注释结果筛选，排除线粒体、叶绿体、真核和非16S
+	# 方法3. 基于silva132的usearch注释结果筛选，排除线粒体、叶绿体、真核和非16S。仍有结果RDP会注释Chloroplast
 	usearch10 -sintax temp/otus_no_chimeras.fa \
 		-db ${usearch_silva} -sintax_cutoff ${sintax_cutoff} -strand both \
 		-tabbedout temp/otus_no_chimeras.tax -threads ${p}
@@ -236,6 +237,9 @@ else ifeq (${host_method}, sintax_unite)
 		-tabbedout temp/otus_no_chimeras.tax -threads ${p}
 	grep -P -v 'Fungi|\t$$' temp/otus_no_chimeras.tax | cut -f 1 > temp/otus_no_fungi.id
 	cat <(grep '>' temp/otus_no_chimeras.fa|sed 's/>//') temp/otus_host.id temp/otus_no_fungi.id | sort | uniq -u > temp/otus_no_host.id
+else ifeq (${host_method}, none)
+	# 方法6. 不过滤宿主和质体
+	cut -f 1 temp/otus_no_chimeras.tax > temp/otus_no_host.id
 else
 	# 其它：没有提供正确的方法名称，报错提示
 	$(error "Please select the right method: one of in blast, usearch_gg or usearch_silva") 
@@ -265,6 +269,18 @@ else
 	$(error "Please select the right method: one of in usearch10 or vsearch") 
 endif
 
+##
+
+otutab_sample_count:
+	touch $@
+	# 对OTU表生成的样本量可视化，与拆库的比较
+	sed -i 's/\: /\t/' temp/otutab.biom.sum
+	mkdir -p result/otutab
+	echo -ne "${s}\t" >> result/split/${l}.txt; wc -l seq/sample/${s}_1.fq | awk '{print $1/4}' >>  result/split/${l}.txt; done; \
+	awk 'BEGIN{FS=OFS="\t"} NR==FNR{a[$1]=$2} NR>FNR{print $1,a[$1]}' temp/otutab.biom.sum result/split/${l}.txt > result/otutab/${l}.txt
+	plot_bar_library.sh -i result/otutab/${l}.txt -d doc/design.txt -o result/otutab/${l} -A groupID -l ${l};\
+	done
+
 
 ## 1.11 OTU表筛选 Filter OTU table
 
@@ -274,6 +290,8 @@ otutab_filter: otutab_create
 	usearch10 -otutab_stats temp/otutab.txt -output temp/otutab.txt.stat
 	echo -ne "\nOTU table summary\nType\tThreshold\tReads\tSamples\tOTUs\nTotal\t-\t" > ${log_otutable}
 	head -n3 temp/otutab.txt.stat|awk '{print $$1}'|tr '\n' '\t'|sed 's/\t$$/\n/' >> ${log_otutable}
+	biom convert -i temp/otutab.txt -o temp/otutab.biom --table-type="OTU table" --to-json
+	biom summarize-table -i temp/otutab.biom > temp/otutab.biom.sum
 	# 按样本测序量筛选：通常低于5000的样本会删除
 	usearch10 -otutab_trim temp/otutab.txt -min_sample_size ${min_sample_size} -output temp/otutab_trim1.txt
 	usearch10 -otutab_stats temp/otutab_trim1.txt -output temp/otutab_trim1.txt.stat
@@ -297,12 +315,15 @@ otutab_filter: otutab_create
 	biom summarize-table -i result/otutab.biom > result/otutab.biom.sum
 	head -n 30 result/otutab.biom.sum
 
+
+	
+
 ## OTU表抽样标准化
 
 otutab_norm: otutab_filter
 	touch $@
 	# 依据最小样本量，设置OTU表标准化的阈值，如我们看到最小样品数据量为3.1万，可以抽样至3万
-	usearch10 -otutab_norm result/otutab.txt -sample_size ${sample_size} -output result/otutab_norm.txt 
+	usearch11 -otutab_rare result/otutab.txt -sample_size ${sample_size} -output result/otutab_norm.txt 
 	usearch10 -otutab_stats result/otutab_norm.txt -output result/otutab_norm.txt.stat
 	echo -ne "OtuNorm\t${sample_size}\t" >> ${log_otutable}
 	head -n3 result/otutab_norm.txt.stat|awk '{print $$1}'|tr '\n' '\t'|sed 's/\t$$/\n/' >> ${log_otutable}
@@ -372,6 +393,7 @@ alpha_calc: tree_make
 	# 稀释曲线：取1%-100%的序列中OTUs数量 Rarefaction from 1%, 2% .. 100% in richness (observed OTUs)
 	# method fast / with_replacement / without_replacement ref: https://drive5.com/usearch/manual/cmd_otutab_subsample.html
 	usearch10 -alpha_div_rare result/otutab_norm.txt -output result/alpha/rare.txt -method ${rare_method}
+	# 标准化数据量少于10000，如1000时，稀释数据会出错
 
 # 1.16 Beta多样性进化树和距离矩阵计算 Beta diversity tree and distance matrix
 
@@ -386,7 +408,7 @@ ifeq (${tree_method}, usearch10)
 	usearch10 -cluster_agg result/otu.fa -treeout result/otu_usearch.tree
 	# ---Fatal error--- ../calcdistmxu.cpp(32) assert failed: QueryUniqueWordCount > 0 致信作者
 	# 生成5种距离矩阵：bray_curtis, euclidean, jaccard, manhatten, unifrac
-	usearch10 -beta_div result/otutab.txt -tree result/otu_usearch.tree -filename_prefix result/beta/
+	usearch10 -beta_div result/otutab_norm.txt -tree result/otu_usearch.tree -filename_prefix result/beta/
 	# ---Fatal error--- 1(91), expected ')', got '0.993' 它只依赖于cluster_agg的结果，fasttree结果不可用
 else ifeq (${tree_method}, qiime)
 	# clustalo + qiime1.9.1
@@ -468,6 +490,8 @@ beta_pcoa2: beta_calc2
 clean:
 	pigz seq/L*.fq
 	rm -r temp/
+
+
 
 
 # 2. 统计绘图 Statistics and plot
@@ -564,6 +588,25 @@ DA_compare_tax: tax_stackplot
 	batch2.pl -i result/compare_$${i}/diff.list.venn'*'.xls -d result/compare_$${i}/database.txt -o result/compare_$${i}/ -p vennNumAnno.pl; \
 	done
 
+# 临时代码，用于调试和中间修改使用
+DA_compare_tax3: tax_stackplot
+	touch $@
+	for i in p g;do \
+	rm -fr result/compare_$${i}; \
+	mkdir -p result/compare_$${i}; \
+	compare_OTU.sh -i result/tax/sum_$${i}.txt -c ${Dct_compare} -m ${Dct_method} \
+		-p ${Dct_pvalue} -q ${Dct_FDR} -F ${Dct_FC} -t ${Dct_thre} \
+		-d ${Dct_design} -A ${Dct_group_name} -B ${Dct_group_list} \
+		-o result/compare_$${i}/; \
+	batch_venn.pl -i ${doc}/venn.txt -d result/compare_$${i}/diff.list; \
+	done
+
+DA_compare_tax4: DA_compare_tax3
+	for i in p g;do \
+	batch_venn.pl -i ${doc}/venn.txt -d result/compare_$${i}/diff.list; \
+	batch2.pl -i result/compare_$${i}/diff.list.venn'*'.xls -d result/compare_$${i}/database.txt -o result/compare_$${i}/ -p vennNumAnno.pl; \
+	done
+
 # 统计各分类级reads count值，All reads count, and full taxonomy in result/count*
 DA_compare_tax2: tax_stackplot
 	touch $@
@@ -651,22 +694,33 @@ plot_venn: plot_manhattan
 
 ## 3.1 lefse 多种差异物种特征分析
 
-## 3.2 picurst GG宏基因组预测
+## 3.2 PICRUSt GG宏基因组预测
 picrust_calc: 
 	touch $@
-	mkdir -p picurst
-	biom convert -i result/otutab_gg.txt -o picurst/otutab.biom --table-type="OTU table" --to-json
-	biom summarize-table -i picurst/otutab.biom > picurst/otutab.stat
-	cat picurst/otutab.stat
+	mkdir -p PICRUSt
+	biom convert -i result/otutab_gg.txt -o PICRUSt/otutab.biom --table-type="OTU table" --to-json
+	biom summarize-table -i PICRUSt/otutab.biom > PICRUSt/otutab.stat
+	cat PICRUSt/otutab.stat
 	# 校正拷贝数
-	normalize_by_copy_number.py -i picurst/otutab.biom -o picurst/otutab_norm.biom -c /db/picrust/16S_13_5_precalculated.tab.gz
+	normalize_by_copy_number.py -i PICRUSt/otutab.biom -o PICRUSt/otutab_norm.biom -c /db/picrust/16S_13_5_precalculated.tab.gz
 	# 预测宏基因组KO表
-	predict_metagenomes.py -i picurst/otutab_norm.biom -o picurst/ko.biom -c /db/picrust/ko_13_5_precalculated.tab.gz
-	predict_metagenomes.py -f -i picurst/otutab_norm.biom -o picurst/ko.txt  -c /db/picrust/ko_13_5_precalculated.tab.gz
+	predict_metagenomes.py -i PICRUSt/otutab_norm.biom -o PICRUSt/ko.biom -c /db/picrust/ko_13_5_precalculated.tab.gz
+	predict_metagenomes.py -f -i PICRUSt/otutab_norm.biom -o PICRUSt/ko.txt  -c /db/picrust/ko_13_5_precalculated.tab.gz
 	# 按功能级别分类汇总, -c指输出类型，有KEGG_Pathways, COG_Category, RFAM三种，-l是级别，分4级，初始KO为4级，可全并为1-3级
-	categorize_by_function.py -f -i picurst/ko.biom -c KEGG_Pathways -l 3 -o picurst/ko3.txt
-	categorize_by_function.py -f -i picurst/ko.biom -c KEGG_Pathways -l 2 -o picurst/ko2.txt
-	categorize_by_function.py -f -i picurst/ko.biom -c KEGG_Pathways -l 1 -o picurst/ko1.txt
+	categorize_by_function.py -f -i PICRUSt/ko.biom -c KEGG_Pathways -l 3 -o PICRUSt/ko3.txt
+	categorize_by_function.py -f -i PICRUSt/ko.biom -c KEGG_Pathways -l 2 -o PICRUSt/ko2.txt
+	categorize_by_function.py -f -i PICRUSt/ko.biom -c KEGG_Pathways -l 1 -o PICRUSt/ko1.txt
+	sed -i '/# Const/d;s/#OTU //g' PICRUSt/ko*.txt
+
+picrust_compare: picrust_calc
+	touch $@
+	rm -fr ${Dc_output}
+	mkdir -p ${Dc_output}
+	compare_OTU.sh -i ${Pic_input} -c ${Pic_compare} -m ${Pic_method} \
+		-p ${Pic_pvalue} -q ${Pic_FDR} -F ${Pic_FC} -t ${Pic_thre} \
+		-d ${Pic_design} -A ${Pic_group_name} -B ${Pic_group_list} \
+		-o ${Pic_output} #  -C ${Pic_group_name2}
+
 
 ## 3.3 faprotax 元素循环
 	
@@ -699,6 +753,7 @@ plot_fa_barplot: faprotax_calc
 
 	# 筛选每个OTUs在菌库中的相似度和覆盖度，挑选高丰度的绘制Graphlan图
 culture: 
+	touch $@
 	mkdir -p result/39culture
 	# 比对OTU至可培养菌blast数据库
 	blastn -query result/otu.fa -db ${culture_db} -out temp/culture_otu.blastn -outfmt '6 qseqid sseqid pident qcovs length mismatch gapopen qstart qend sstart send evalue bitscore' -num_alignments 1 -evalue 1 -num_threads ${p}
@@ -710,7 +765,9 @@ culture:
 	echo -ne "Cultured OTUs\t" >> result/39culture/summary.txt
 	awk '$$3>=97 && $$4>=99' temp/culture_otu.blastn|wc -l >> result/39culture/summary.txt
 	# 计算平均丰度
-	otutab_mean.sh -i result/otutab.txt -o temp/otutab.mean
+	# otutab_mean.sh -i result/otutab.txt -o temp/otutab.mean
+	# 计算指定组的丰度
+	otutab_mean_group.sh -i result/otutab.txt -o temp/otutab.mean -d ${cg_design} -A ${cg_group_name} -B ${cg_group_list}
 	# 添加丰度至culture
 	awk 'BEGIN{OFS=FS="\t"} NR==FNR {a[$$1]=$$2} NR>FNR {print $$0,a[$$1]}' temp/otutab.mean temp/culture_otu.blastn | cut -f 1-4,14 > temp/temp
 	# 添加物种注释
@@ -719,22 +776,22 @@ culture:
 	awk '$$3>=97 && $$4>=99' result/39culture/otu.txt | awk '{a=a+$$5} END {print a}' >> result/39culture/summary.txt
 	cat result/39culture/summary.txt
 
-culture_graphlan: 
+culture_graphlan: culture
 	# 筛选根际土、根的k1 OTU,并在相应库中匹配培养比例；
 	mkdir -p ${filter}
-	filter_otus_from_otu_table.sh -t ${thre2} -o ${filter} -f ${otu_table} -d ${design} -F 'TRUE' -A ${g1} -B ${g1_list} -F ${filter_method}
+	filter_otus_from_otu_table.sh -t ${graph_thre} -o ${filter} -f ${otu_table} -d ${cg_design} -A ${cg_group_name} -B ${cg_group_list} -F ${filter_method}
 	filter_fasta.py -f result/otu.fa -o ${filter}/rep_seqs.fa.top -s ${filter}/otu_table_ha.id
-	echo -ne "Nature_HA_OTUs:\t" > ${filter}/culture.sum
-	grep -c '>' ${filter}/rep_seqs.fa.top >> ${filter}/culture.sum
+	echo -ne "Nature_HA_OTUs:\t" > ${filter}/culture.txt
+	grep -c '>' ${filter}/rep_seqs.fa.top >> ${filter}/culture.txt
 	# 分析这些OTU中可培养的比例
-	blastn -query ${filter}/rep_seqs.fa.top -db ${cluture_db} -out ${filter}/rep_seqs.blastn -outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs' -num_alignments 1 -evalue 1 -num_threads 9 # 输出13列为coverage
+	blastn -query ${filter}/rep_seqs.fa.top -db ${culture_db} -out ${filter}/rep_seqs.blastn -outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs' -num_alignments 1 -evalue 1 -num_threads 9 # 输出13列为coverage
 	awk '$$3*$$13>=9700' ${filter}/rep_seqs.blastn|cut -f 1 > ${filter}/otu_cultured.txt
-	echo -ne "Stocked_OTUs:\t" >> ${filter}/culture.sum
-	grep -c 'OTU' ${filter}/otu_cultured.txt >> ${filter}/culture.sum
-	echo -ne "Nature_HA_abundance:\t" >> ${filter}/culture.sum
-	awk '{a=a+$$2} END {print a}' ${filter}/otu_table_ha.mean >> ${filter}/culture.sum # total is 0.835
-	echo -ne "Stocked_abundance:\t" >> ${filter}/culture.sum
-	awk 'BEGIN{OFS=FS="\t"} NR==FNR {a[$$1]="culture"} NR>FNR {print $$0,a[$$1]}' ${filter}/otu_cultured.txt ${filter}/otu_table_ha.mean |grep 'culture'|awk '{a=a+$$2} END {print a}' >> ${filter}/culture.sum 
+	echo -ne "Stocked_OTUs:\t" >> ${filter}/culture.txt
+	grep -c 'OTU' ${filter}/otu_cultured.txt >> ${filter}/culture.txt
+	echo -ne "Nature_HA_abundance:\t" >> ${filter}/culture.txt
+	awk '{a=a+$$2} END {print a}' ${filter}/otu_table_ha.mean >> ${filter}/culture.txt # total is 0.835
+	echo -ne "Stocked_abundance:\t" >> ${filter}/culture.txt
+	awk 'BEGIN{OFS=FS="\t"} NR==FNR {a[$$1]="culture"} NR>FNR {print $$0,a[$$1]}' ${filter}/otu_cultured.txt ${filter}/otu_table_ha.mean |grep 'culture'|awk '{a=a+$$2} END {print a}' >> ${filter}/culture.txt 
 	# 绘制graphlan
 	sed 's/\t/\;/g' result/taxonomy_8.txt|sed 's/\;/\t/' > temp/taxonomy_2.txt
 	graphlan_culture.pl -i ${filter}/otu_table_ha.id -d ${filter}/otu_cultured.txt -t temp/taxonomy_2.txt -o 0_ha_otu_culture.txt
@@ -743,7 +800,7 @@ culture_graphlan:
 	cat /mnt/bai/yongxin/culture/rice/graphlan/global.cfg 2_annotation_family.txt /mnt/bai/yongxin/culture/rice/graphlan/ring1.cfg 3_annotation_match.txt /mnt/bai/yongxin/culture/rice/graphlan/abundance_heat.cfg ${filter}/abundance_heat.txt > ${filter}/5_annotation.txt
 	graphlan_annotate.py --annot ${filter}/5_annotation.txt 1_tree_plain.txt ${filter}/graphlan.xml
 	graphlan.py ${filter}/graphlan.xml ${filter}/graphlan.pdf --size 5
-	cat ${filter}/culture.sum
+	cat ${filter}/culture.txt
 
 
 # 4. 输出结果报告 Write Rmarkdown HTML report

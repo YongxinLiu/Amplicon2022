@@ -212,8 +212,6 @@ knitr::include_graphics("result/beta/cpcoa_bray.png")
 }
 close OUTPUT;
 
-$file = "$opts{c}";
-if (-e $file) {
 
 ## 样品组比较
 open DATABASE,"<$opts{c}";
@@ -353,7 +351,7 @@ knitr::include_graphics(figs_2)
 
 }
 
-}
+
 
 
 
@@ -503,11 +501,11 @@ print OUTPUT qq!
 
 ### $venn_list
 
-(ref:otu-venn-$j) 维恩图展示各比较组差异OTU的共有和特有数量。Venn diagrams show common and unique OTUs in each group. [PDF](result/compare/diff.list.venn$venn_list.pdf) [TXT](result/compare/diff.list.venn$venn_list2.xls.xls)  
+(ref:otu-venn-$j) 维恩图展示各比较组差异OTU的共有和特有数量。Venn diagrams show common and unique OTUs in each group. [PDF](result/compare/Fdiff.list.venn$venn_list.pdf) [TXT](result/compare/Fdiff.list.venn$venn_list2.xls)  
 
 
 ```{r otu-venn-$j, fig.cap="(ref:otu-venn-$j)", out.width="99%"}
-figs_2 = paste0("result/compare/diff.list.venn", "$venn_list", ".png")
+figs_2 = paste0("result/compare/Fdiff.list.venn", "$venn_list", ".png")
 knitr::include_graphics(figs_2)
 ```
 
