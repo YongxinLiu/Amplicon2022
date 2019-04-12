@@ -31,8 +31,8 @@ cat <<EOF >&2
 Usage:
 -------------------------------------------------------------------------------
 Filename:    compare.sh
-Version:     1.3
-Date:        2018/5/24
+Version:     1.5
+Date:        2019/4/12
 Author:      Yong-Xin Liu
 Email:       metagenome@126.com
 Website:     https://blog.csdn.net/woodcorpse
@@ -56,6 +56,8 @@ Version 1.3 2018/5/24
 Add matrix normalization paramter, default TRUE, can trun off
 Version 1.4 2018/6/13
 添加维恩列表初始化为空，和结束时简化；OTU丰度筛选可修改为不同组
+Version 1.5 2019/4/12
+修正差异列表头为对数具体值
 
 # All input and output should be in default directory, or give relative or absolute path by -i/-d
 

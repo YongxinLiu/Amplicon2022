@@ -786,16 +786,12 @@ culture:
 
 culture_graphlan: culture
 	# 筛选根际土、根的k1 OTU,并在相应库中匹配培养比例
-	# 基本思路：按实验设计筛选OTU表高丰度OTU ID及丰度及筛选序列；比对菌库筛选97%以上序列；
-	#创建子工作目录，非通用文件必须存放于子目录，否则被其它子项目覆盖将无法追溯
 	mkdir -p ${filter}
-	# 按指定的组和丰度值及规则筛选；输出有otu_table_ha.* id为序列ID用于提取序列子集；mean为均值；log2为对数变换均值；Zscore为水平标准化
 	filter_otus_from_otu_table.sh -t ${graph_thre} -o ${filter} -f ${otu_table} -d ${cg_design} -A ${cg_group_name} -B ${cg_group_list} -F ${filter_method}
-	# 按ID筛选高丰度OTU序列: 输入 otu_table_ha.id，和otu.fa；输出 rep_seqs.fa.top
 	filter_fasta.py -f result/otu.fa -o ${filter}/rep_seqs.fa.top -s ${filter}/otu_table_ha.id
 	echo -ne "Nature_HA_OTUs:\t" > ${filter}/culture.txt
 	grep -c '>' ${filter}/rep_seqs.fa.top >> ${filter}/culture.txt
-	# 分析这些OTU中可培养的比例：按97%筛选，并统计前后数量及丰度 rep_seqs.blastn 有培养菌对应的序列
+	# 分析这些OTU中可培养的比例
 	blastn -query ${filter}/rep_seqs.fa.top -db ${culture_db}.fa -out ${filter}/rep_seqs.blastn -outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs' -num_alignments 1 -evalue 1 -num_threads 9 # 输出13列为coverage
 	awk '$$3*$$13>=9700' ${filter}/rep_seqs.blastn|cut -f 1 > ${filter}/otu_cultured.txt
 	echo -ne "Stocked_OTUs:\t" >> ${filter}/culture.txt
@@ -804,14 +800,10 @@ culture_graphlan: culture
 	awk '{a=a+$$2} END {print a}' ${filter}/otu_table_ha.mean >> ${filter}/culture.txt # total is 0.835
 	echo -ne "Stocked_abundance:\t" >> ${filter}/culture.txt
 	awk 'BEGIN{OFS=FS="\t"} NR==FNR {a[$$1]="culture"} NR>FNR {print $$0,a[$$1]}' ${filter}/otu_cultured.txt ${filter}/otu_table_ha.mean |grep 'culture'|awk '{a=a+$$2} END {print a}' >> ${filter}/culture.txt 
-	# 绘制graphlan 
-	##替换8列为2列格式，方便匹配
+	# 绘制graphlan
 	sed 's/\t/\;/g' result/taxonomy_8.txt|sed 's/\;/\t/' > temp/taxonomy_2.txt
-	#基于ID、培养情况、物种注释生成表 otu_cultured.txt
-	graphlan_culture.pl -i ${filter}/otu_table_ha.id -d ${filter}/otu_cultured.txt -t temp/taxonomy_2.txt -o ${filter}/0_ha_otu_culture.txt
-	cp ${filter}/0_ha_otu_culture.txt ./
-	# 转换为graphlan格式
-	Rscript /mnt/bai/yongxin/github/Amplicon/16Sv2/script/graphlan_culture.R # 生成1树, 2科注释, 3培养注释文件
+	graphlan_culture.pl -i ${filter}/otu_table_ha.id -d ${filter}/otu_cultured.txt -t temp/taxonomy_2.txt -o 0_ha_otu_culture.txt
+	Rscript /mnt/bai/yongxin/bin/graphlan_culture.R # 生成1树, 2科注释, 3培养注释文件
 	sed 's/\t/\tring_alpha\t3\t/g' ${filter}/otu_table_ha.zscore > ${filter}/abundance_heat.txt # 柱状用log2，热图用zscore
 	cat /mnt/bai/yongxin/culture/rice/graphlan/global.cfg 2_annotation_family.txt /mnt/bai/yongxin/culture/rice/graphlan/ring1.cfg 3_annotation_match.txt /mnt/bai/yongxin/culture/rice/graphlan/abundance_heat.cfg ${filter}/abundance_heat.txt > ${filter}/5_annotation.txt
 	graphlan_annotate.py --annot ${filter}/5_annotation.txt 1_tree_plain.txt ${filter}/graphlan.xml

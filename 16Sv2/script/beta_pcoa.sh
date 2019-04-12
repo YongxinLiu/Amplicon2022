@@ -24,7 +24,7 @@ cat <<EOF >&2
 Usage:
 -------------------------------------------------------------------------------
 Filename:    beta_pcoa.sh
-Version:     1.0
+Version:     1.2
 Date:        2018/4/6
 Author:      Yong-Xin Liu
 Email:       metagenome@126.com
@@ -41,8 +41,12 @@ https://doi.org/10.1007/s11427-018-9284-4
 -------------------------------------------------------------------------------
 Version 1.0 2018/4/5
 Based on QIIME beta_diversity.py and design, draw beta pcoa and statistics.
-Version 1.2 2018/5/8
+Version 1.1 2018/5/8
 Output pcoa coordinate files
+Version 1.2 2019/4/10
+All comment is a new line, can filter by #
+
+
 # All input and output should be in default directory, or give relative or absolute path by -i/-d
 
 # Input files: design.txt, index.txt
@@ -251,9 +255,11 @@ for(m in method){
 	sub_design=sub_design[idx,]
 	sub_beta=beta[rownames(sub_design),rownames(sub_design)]
 
-	# vegan:cmdscale计算矩阵矩阵中主坐标轴坐标，取前3维
-	pcoa = cmdscale(sub_beta, k=4, eig=T) # k is dimension, 3 is recommended; eig is eigenvalues
-	points = as.data.frame(pcoa\$points) # get coordinate string, format to dataframme
+	# vegan:cmdscale计算矩阵矩阵中主坐标轴坐标，取前4维
+    # # k is dimension, 3 is recommended; eig is eigenvalues
+	pcoa = cmdscale(sub_beta, k=4, eig=T) 
+    # get coordinate string, format to dataframe
+	points = as.data.frame(pcoa\$points) 
 	eig = pcoa\$eig
 	points = cbind(points, sub_design\$group)
 	colnames(points) = c("PC1", "PC2", "PC3", "PC4","group") 

@@ -13,7 +13,7 @@
 
 site="https://mirrors.tuna.tsinghua.edu.cn/CRAN"
 # 依赖包列表：参数解析、数据变换、绘图和开发包安装、安装依赖、ggplot主题
-package_list = c("vegan", "reshape2", "ggplot2", "devtools", "bindrcpp", "ggthemes", "agricolae", "dplyr", 
+package_list = c("vegan", "reshape2", "ggplot2", "devtools", "bindrcpp", "ggthemes", "agricolae", # "dplyr", 
                  "scales", "vegan", "pheatmap")
 # 判断R包加载是否成功来决定是否安装后再加载
 for(p in package_list){
@@ -23,27 +23,27 @@ for(p in package_list){
   }
 }
 
-## 1.2 安装bioconductor常用包
- 
-package_list = c("ggrepel")
-for(p in package_list){
-  if(!suppressWarnings(suppressMessages(require(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
-    source("https://bioconductor.org/biocLite.R")
-    biocLite(p)
-    suppressWarnings(suppressMessages(library(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
-  }
-}
-
-# 1.3 安装Github常用包
-
-package_list = c("kassambara/ggpubr")
-for(p in package_list){
-  q=unlist(strsplit(p,split = "/"))[2]
-  if(!suppressWarnings(suppressMessages(require(q, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
-    install_github(p)
-    suppressWarnings(suppressMessages(library(q, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
-  }
-}
+# ## 1.2 安装bioconductor常用包
+#  
+# package_list = c("ggrepel")
+# for(p in package_list){
+#   if(!suppressWarnings(suppressMessages(require(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
+#     source("https://bioconductor.org/biocLite.R")
+#     biocLite(p)
+#     suppressWarnings(suppressMessages(library(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
+#   }
+# }
+# 
+# # 1.3 安装Github常用包
+# 
+# package_list = c("kassambara/ggpubr")
+# for(p in package_list){
+#   q=unlist(strsplit(p,split = "/"))[2]
+#   if(!suppressWarnings(suppressMessages(require(q, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
+#     install_github(p)
+#     suppressWarnings(suppressMessages(library(q, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
+#   }
+# }
 
 
   
