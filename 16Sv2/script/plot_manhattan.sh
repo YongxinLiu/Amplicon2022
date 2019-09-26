@@ -275,10 +275,10 @@ mat_mean = aggregate(temp[,-1], by=temp[1], FUN=median) # mean
 if (max(x\$neglogp)>${ymax}){
   x[x\$neglogp>${ymax},]\$neglogp  = ${ymax}
 }
-
+colnames(x)[2]="log2CPM" 
 # Manhattan plot
 FDR = min(x\$neglogp[x\$level!="NotSig"])
-p = ggplot(x, aes(x=num, y=neglogp, color=tax, size=logCPM, shape=level)) +
+p = ggplot(x, aes(x=num, y=neglogp, color=tax, size=log2CPM, shape=level)) +
   geom_point(alpha=.7) + 
   geom_hline(yintercept=FDR, linetype=2, color="lightgrey") +
   scale_shape_manual(values=c(25, 17, 20))+
@@ -286,8 +286,8 @@ p = ggplot(x, aes(x=num, y=neglogp, color=tax, size=logCPM, shape=level)) +
   labs(x="Taxonomy of OTUs", y="-log10(P)", title=paste("${input}", sep=" ")) +main_theme +
   theme(legend.position="top") +
   scale_x_continuous(breaks=mat_mean\$x, labels=mat_mean\$tax) + 
-  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
-  ylim(0,${ymax})
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) # + ylim(0,${ymax})
+  # ylim保持多组y轴范围一致，一般在最终出版时才使用
 p
 ggsave(file=paste("${input}_man_pc.pdf", sep=""), p, width = ${width}, height = ${height}, useDingbats=F)
 ggsave(file=paste("${input}_man_pc.png", sep=""), p, width = ${width}, height = ${height})

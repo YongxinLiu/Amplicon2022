@@ -13,8 +13,7 @@
 
 site="https://mirrors.tuna.tsinghua.edu.cn/CRAN"
 # 依赖包列表：参数解析、数据变换、绘图和开发包安装、安装依赖、ggplot主题
-package_list = c("vegan", "reshape2", "ggplot2", "devtools", "bindrcpp", "ggthemes", "agricolae", # "dplyr", 
-                 "scales", "vegan", "pheatmap")
+package_list = c("dplyr","vegan", "reshape2", "ggplot2", "devtools", "ggthemes", "agricolae","pheatmap","plyr","multcompView") # "ggpubr",
 # 判断R包加载是否成功来决定是否安装后再加载
 for(p in package_list){
   if(!suppressWarnings(suppressMessages(require(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
@@ -53,34 +52,34 @@ for(p in package_list){
 
 ## 2.1 设置颜色
 
-alpha <- .7
-c_yellow <-          rgb(255 / 255, 255 / 255,   0 / 255, alpha)
-c_blue <-            rgb(  0 / 255, 000 / 255, 255 / 255, alpha)
-c_orange <-          rgb(255 / 255,  69 / 255,   0 / 255, alpha)
-c_green <-           rgb(  50/ 255, 220 / 255,  50 / 255, alpha)
-c_dark_green <-      rgb( 50 / 255, 200 / 255, 100 / 255, alpha)
-c_very_dark_green <- rgb( 50 / 255, 150 / 255, 100 / 255, alpha)
-c_sea_green <-       rgb( 46 / 255, 129 / 255,  90 / 255, alpha)
-c_black <-           rgb(  0 / 255,   0 / 255,   0 / 255, alpha)
-c_grey <-            rgb(180 / 255, 180 / 255,  180 / 255, alpha)
-c_dark_brown <-      rgb(101 / 255,  67 / 255,  33 / 255, alpha)
-c_red <-             rgb(200 / 255,   0 / 255,   0 / 255, alpha)
-c_dark_red <-        rgb(255 / 255, 130 / 255,   0 / 255, alpha)
+# alpha  =  .7
+# c_yellow  =           rgb(255 / 255, 255 / 255,   0 / 255, alpha)
+# c_blue  =             rgb(  0 / 255, 000 / 255, 255 / 255, alpha)
+# c_orange  =           rgb(255 / 255,  69 / 255,   0 / 255, alpha)
+# c_green  =            rgb(  50/ 255, 220 / 255,  50 / 255, alpha)
+# c_dark_green  =       rgb( 50 / 255, 200 / 255, 100 / 255, alpha)
+# c_very_dark_green  =  rgb( 50 / 255, 150 / 255, 100 / 255, alpha)
+# c_sea_green  =        rgb( 46 / 255, 129 / 255,  90 / 255, alpha)
+# c_black  =            rgb(  0 / 255,   0 / 255,   0 / 255, alpha)
+# c_grey  =             rgb(180 / 255, 180 / 255,  180 / 255, alpha)
+# c_dark_brown  =       rgb(101 / 255,  67 / 255,  33 / 255, alpha)
+# c_red  =              rgb(200 / 255,   0 / 255,   0 / 255, alpha)
+# c_dark_red  =         rgb(255 / 255, 130 / 255,   0 / 255, alpha)
 
 ## 2.2 调置ggplot2主题
   
 # 主题为空白，轴线宽和颜色，刻度和文字，图例位置，正文文字
-main_theme = theme(panel.background=element_blank(),
-             panel.grid=element_blank(),
-             axis.line.x=element_line(size=.5, colour="black"),
-             axis.line.y=element_line(size=.5, colour="black"),
-             axis.ticks=element_line(color="black"),
-             axis.text=element_text(color="black", size=7),
-             legend.position="right",
-             legend.background=element_blank(),
-             legend.key=element_blank(),
-             legend.text= element_text(size=7),
-             text=element_text(family="sans", size=7))
+main_theme = theme(panel.background = element_blank(),
+    panel.grid = element_blank(),
+    axis.line.x = element_line(size = .5, colour = "black"),
+    axis.line.y = element_line(size = .5, colour = "black"),
+    axis.ticks = element_line(size = .5, color = "black"),
+    axis.text = element_text(size = 7, color = "black"),
+    legend.position = "right",
+    legend.background = element_blank(),
+    legend.key = element_blank(),
+    legend.text = element_text(size = 7),
+    text = element_text(family = "sans", size = 7))
 
 
 
@@ -88,8 +87,7 @@ main_theme = theme(panel.background=element_blank(),
 #  3. 统计函数
 
 ## 3.1 summarySE：计算样本均值、标准差、标准误和置信区间
-summarySE = function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
-                     conf.interval=.95, .drop=TRUE) {
+summarySE = function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE, conf.interval=.95, .drop=TRUE) {
   library(plyr)
   # 计算长度
   length2 = function (x, na.rm=FALSE) {
@@ -102,8 +100,7 @@ summarySE = function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
                   c(N    = length2(xx[[col]], na.rm=na.rm),
                     mean = mean   (xx[[col]], na.rm=na.rm),
                     sd   = sd     (xx[[col]], na.rm=na.rm))},
-                measurevar
-  )
+                    measurevar)
   # 重命名  
   datac = plyr::rename(datac, c("mean" = measurevar))
   # 计算标准偏差
@@ -119,80 +116,75 @@ summarySE = function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
 
 
 ## 3.2 解析Vegan::cca结果
-variability_table <- function(cca){
-  
-  chi <- c(cca$tot.chi,
+variability_table  =  function(cca){
+  chi  =  c(cca$tot.chi,
            cca$CCA$tot.chi, cca$CA$tot.chi)
-  variability_table <- cbind(chi, chi/chi[1])
-  colnames(variability_table) <- c("inertia", "proportion")
-  rownames(variability_table) <- c("total", "constrained", "unconstrained")
+  variability_table  =  cbind(chi, chi/chi[1])
+  colnames(variability_table)  =  c("inertia", "proportion")
+  rownames(variability_table)  =  c("total", "constrained", "unconstrained")
   return(variability_table)
-  
 }
 
-cap_var_props <- function(cca){
-  
-  eig_tot <- sum(cca$CCA$eig)
-  var_propdf <- cca$CCA$eig/eig_tot
+cap_var_props  =  function(cca){
+  eig_tot  =  sum(cca$CCA$eig)
+  var_propdf  =  cca$CCA$eig/eig_tot
   return(var_propdf)
 }
 
-pca_var_props <- function(cca){
-  
-  eig_tot <- sum(cca$CA$eig)
-  var_propdf <- cca$CA$eig/eig_tot
+pca_var_props  =  function(cca){
+  eig_tot  =  sum(cca$CA$eig)
+  var_propdf  =  cca$CA$eig/eig_tot
   return(var_propdf)
 }
 
-cca_ci <- function(cca, permutations=5000){
-  
-  var_tbl <- variability_table(cca)
-  p <- permutest(cca, permutations=permutations)
-  ci <- quantile(p$F.perm, c(.05,.95))*p$chi[1]/var_tbl["total", "inertia"]
+cca_ci  =  function(cca, permutations=5000){
+  var_tbl  =  variability_table(cca)
+  p  =  permutest(cca, permutations=permutations)
+  ci  =  quantile(p$F.perm, c(.05,.95))*p$chi[1]/var_tbl["total", "inertia"]
   return(ci)
 }
 
 
 
 ## 3.3 三元图绘制函数
-tern_e<-function (x, scale = 1, dimnames = NULL, dimnames_position = c("corner",
+tern_e = function (x, scale = 1, dimnames = NULL, dimnames_position = c("corner",
                                                                        "edge", "none"), dimnames_color = "black", id = NULL, id_color = "black",
                   coordinates = FALSE, grid = TRUE, grid_color = "gray", labels = c("inside",
                                                                                     "outside", "none"), labels_color = "darkgray", border = "black",
                   bg = "white", pch = 19, cex = 1, prop_size = FALSE, col = "red",
                   main = "ternary plot", newpage = TRUE, pop = TRUE, ...)
 {
-  labels <- match.arg(labels)
+  labels  =  match.arg(labels)
   if (grid == TRUE)
-    grid <- "dotted"
+    grid  =  "dotted"
   if (coordinates)
-    id <- paste("(", round(x[, 1] * scale, 1), ",", round(x[,
+    id  =  paste("(", round(x[, 1] * scale, 1), ",", round(x[,
                                                             2] * scale, 1), ",", round(x[, 3] * scale, 1), ")",
                 sep = "")
-  dimnames_position <- match.arg(dimnames_position)
+  dimnames_position  =  match.arg(dimnames_position)
   if (is.null(dimnames) && dimnames_position != "none")
-    dimnames <- colnames(x)
+    dimnames  =  colnames(x)
   if (is.logical(prop_size) && prop_size)
-    prop_size <- 3
+    prop_size  =  3
   if (ncol(x) != 3)
     stop("Need a matrix with 3 columns")
   if (any(x < 0))
     stop("X must be non-negative")
-  s <- rowSums(x)
+  s  =  rowSums(x)
   if (any(s <= 0))
     stop("each row of X must have a positive sum")
-  x <- x/s
-  top <- sqrt(3)/2
+  x  =  x/s
+  top  =  sqrt(3)/2
   if (newpage)
     grid.newpage()
-  xlim <- c(-0.03, 1.03)
-  ylim <- c(-1, top)
+  xlim  =  c(-0.03, 1.03)
+  ylim  =  c(-1, top)
   pushViewport(viewport(width = unit(1, "snpc")))
   if (!is.null(main))
     grid.text(main, y = 0.9, gp = gpar(fontsize = 18, fontstyle = 1))
   pushViewport(viewport(width = 0.8, height = 0.8, xscale = xlim,
                         yscale = ylim, name = "plot"))
-  eps <- 0.01
+  eps  =  0.01
   grid.polygon(c(0, 0.5, 1), c(0, top, 0), gp = gpar(fill = bg,
                                                      col = border), ...)
   if (dimnames_position == "corner") {
@@ -200,7 +192,7 @@ tern_e<-function (x, scale = 1, dimnames = NULL, dimnames_position = c("corner",
                                         0.02), label = dimnames, gp = gpar(fontsize = 12))
   }
   if (dimnames_position == "edge") {
-    shift <- eps * if (labels == "outside")
+    shift  =  eps * if (labels == "outside")
       8
     else 0
     grid.text(x = 0.25 - 2 * eps - shift, y = 0.5 * top +
@@ -238,8 +230,8 @@ tern_e<-function (x, scale = 1, dimnames = NULL, dimnames_position = c("corner",
                                                      i) * scale, vjust = 1, rot = 120, gp = gpar(col = labels_color))
       }
     }
-  xp <- x[, 2] + x[, 3]/2
-  yp <- x[, 3] * top
+  xp  =  x[, 2] + x[, 3]/2
+  yp  =  x[, 3] * top
   size = unit(if (prop_size)
     #emiel inserted this code. x are proportions per row.  x*s is original data matrix. s = rowsums of original data matrix (x*s)
     prop_size * rowSums(x*x*s) / max(  rowSums(x*x*s) )
@@ -259,7 +251,6 @@ tern_e<-function (x, scale = 1, dimnames = NULL, dimnames_position = c("corner",
 
 
 ## 3.4 da_adonis：距离矩阵adonis组间差异统计
-
 # Compare each group distance matrix by vegan adonis in bray_curtis
 da_adonis = function(sampleV){
   sampleA = as.matrix(sampleV$sampA)
@@ -279,9 +270,9 @@ da_adonis = function(sampleV){
 
 
 ## 3.5 相关评估r2
-lm_eqn <- function(df){
-  m <- lm(y ~ x, df);
-  eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2, 
+lm_eqn  =  function(df){
+  m  =  lm(y ~ x, df);
+  eq  =  substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2, 
                    list(a = format(coef(m)[1], digits = 2), 
                         b = format(coef(m)[2], digits = 2), 
                         r2 = format(summary(m)$r.squared, digits = 3)))
@@ -294,7 +285,7 @@ lm_eqn <- function(df){
 
 # 传入参数为OTU表
 
-sample_rare <- function(df, count_cutoff =3, length = 30, rep = 30){  
+sample_rare  =  function(df, count_cutoff =3, length = 30, rep = 30){  
   # 小于一定频率是认为是噪间 set threshold to distinguish noise, default cutoff = 3, min 1, max 30
   # count_cutoff = 3
   # loop for 1 to n samples, set length
@@ -343,9 +334,9 @@ sample_rare <- function(df, count_cutoff =3, length = 30, rep = 30){
 
 
 
-# 基于数据框，默认的group列和批量的m列绘制箱线图+统计
+## 3.7 基于数据框，默认的group列和批量的m列绘制箱线图+统计
 
-boxplot_anova <- function(index, m){  
+boxplot_anova  =  function(index, m){  
   # boxplot stat code
 model = aov(index[[m]] ~ group, data=index)
 Tukey_HSD = TukeyHSD(model, ordered = TRUE, conf.level = 0.95)
@@ -374,43 +365,65 @@ p
 }
 
 
-# 单列数据绘制饼形图，要求列V1为名称，V2为数值
+## 3.8 单列数据绘制饼形图，要求列V1为名称，V2为数值
 
-plot_pie <- function(df, width, threshold){  
+plot_pie  =  function(df, radius, threshold){  
   # 绘制柱状图、饼图代码
   data = df
+  width = radius
   colnames(data)=c("class", "CK")
   # 生成自定义图例标签，在标签上显示百分比；
   lab1 =as.vector(data$class)
-  lab1
+  # lab1
   lab1 =paste(lab1, "(", round(data$CK, 2), ")",sep = "") # /sum(data$CK)*100 # "%)"
-  lab1
-  # 生成仅有“百分比”的数据标签，并将数值小于5%的标签设置为“空”，避免占比较小的区域标签互相重叠；
-  lab2<-round(data$CK/sum(data$CK)*100,1)
-  lab2
-  n<-length(lab2)
-  n
+  # lab1
+  # 生成仅有“百分比”的数据标签，并将数值小于threshold，如3%的标签设置为“空”，避免占比较小的区域标签互相重叠；
+  lab2 = round(data$CK/sum(data$CK)*100,1)
+  # lab2
+  n = length(lab2)
+  # n
   for(i in 1: n){
     if(as.numeric(lab2[i])< threshold )
-      lab2[i]<-""
+      lab2[i] = ""
     else
-      lab2[i]<-paste(lab2[i],"%",sep= "")
+      lab2[i] = paste(lab2[i],"%",sep= "")
   }
   lab2
   # 绘制堆叠条形图，设置条形图的“边框”为白色；
-  # p1<-ggplot(data=data,aes(x="",y=data$CK,fill=(data$class)))+geom_bar(stat="identity",width=0.4,color="white",linetype=1,size=1)
+  # p1 = ggplot(data=data,aes(x="",y=data$CK,fill=(data$class)))+geom_bar(stat="identity",width=0.4,color="white",linetype=1,size=1)
   # p1
   # #添加百分比标签；
-  # p2<-p1+geom_text(aes(x=1,label=lab2),position= position_stack(reverse =F,vjust=0.5),size=6)
+  # p2 = p1+geom_text(aes(x=1,label=lab2),position= position_stack(reverse =F,vjust=0.5),size=6)
   # p2
   # coord_polar()将直角坐标系转为极坐标系；
-  p3<-ggplot(data=data,aes(x="",y=data$CK,fill=data$class))+ geom_bar(stat="identity",width=width,color="white",linetype=1,size=1)+coord_polar(theta="y") +labs(x="",y="",title="")
-  p3<-p3+geom_text(aes(x=1.25,label=lab2),position= position_stack(reverse =F,vjust=0.5),size=4)
+  p3 = ggplot(data=data,aes(x="",y=data$CK,fill=data$class))+ 
+    geom_bar(stat="identity",width = width,color="white",linetype=1,size=1)+
+    coord_polar(theta="y") + labs(x="",y="",title="")
+  p3 = p3 + geom_text(aes(x=1.25,label=lab2),position = position_stack(reverse =F, vjust=0.5), size=4)
   # vjust的值取 0位于底部，0.5中间， 1 (the default) 在上部；
   # p3
   # 更改图表的主题，去掉横纵坐标标题，添加图片标题，将背景改为白色，图列位置（这里仍保持右侧）；
-  p4<-p3+theme_bw() +  theme(axis.text=element_blank(),panel.border=element_blank(),axis.ticks=element_blank(),        panel.grid=element_blank(),legend.title= element_blank(), legend.position = "right") +
-    # 更新为自定义的图例标签，使标签显示百分比；
+  # 更新为自定义的图例标签，使标签显示百分比；
+  p4 = p3 + theme_bw() + 
+    theme(axis.text=element_blank(),panel.border=element_blank(),axis.ticks=element_blank(), panel.grid=element_blank(),legend.title= element_blank(), legend.position = "right") +
     scale_fill_discrete(breaks= data$class, labels = lab1)
   p4
 }
+
+## 3.9 Tukey检验转换字母
+# 将Tukey检验结果P值转换为显著字母分组
+generate_label_df = function(TUKEY, variable){
+  library(multcompView)
+  # 转换P值为字母分组
+  ## 提取图基检验中分组子表的第4列P adjust值
+  Tukey.levels = TUKEY[[variable]][,4]
+  ## multcompLetters函数将两两p值转换为字母，data.frame并生成列名为Letters的数据框
+  Tukey.labels = data.frame(multcompLetters(Tukey.levels)['Letters'])
+  # 按分组名字母顺序
+  ## 提取字母分组行名为group组名
+  Tukey.labels$group = rownames(Tukey.labels)
+  # 按组名的字线顺序排列，默认的Levels
+  Tukey.labels=Tukey.labels[order(Tukey.labels$group) , ]
+  return(Tukey.labels)
+}
+

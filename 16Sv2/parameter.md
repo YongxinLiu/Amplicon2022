@@ -46,10 +46,11 @@ SHELL:=/bin/bash
 ## 1.4. fq_trim 切除引物和标签
 
 	# Cut barcode 10bp + primer V5 19bp in left, and primer V7 18bp in right
+	# Cut barcode 10bp + ITS1F 22bp in left， and ITS2 20bp in right
 	stripleft=29
 	stripright=18
 
-## 1.5. **fq_qc 质量控制**
+## 1.5. fq_qc 质量控制
 	
 	# fastq filter
 	# 默认错误率<0.01 keep reads error rates less than 1%
@@ -59,9 +60,10 @@ SHELL:=/bin/bash
 
 	# Remove redundancy
 	# 最小序列频率默认为8，去除低丰度，增加计算速度，整lane的序列推荐1/1M，即上一步最后一行的数据量
+	# 根据fq_qc输出结果判断，如最后一行输出数据据量53M，推荐阈值为50
 	minuniquesize=8
 
-## 1.7. **otu_pick 挑选OTU**
+## 1.7. otu_pick 挑选OTU
 
 	# Pick OTUs
 	# 可选97% cluster_otus 和 unoise3 ，默认unoise3
@@ -121,8 +123,8 @@ SHELL:=/bin/bash
 	# 物种注释推荐使用小而准的数据库，如rdp trainset 16(由Robert整理)
 	# 可选gg, silva, rdp分别从官网下载并shell调整格式，gg较准但旧，silva全但不准，rdp少而准，比较通用
 	sintax_db=${usearch_rdp}
-	# 分类准确度阈值，默认0.8，注释太少最小可改0.5，发现有明显错误可最高上升为0.95，改为零为最大化显示物种注释
-	sintax_cutoff=0
+	# 分类准确度阈值，默认0.8，注释太少最小可改0.6，发现有明显错误可最高上升为0.9，改为零为最大化显示物种注释
+	sintax_cutoff=0.8
 
 ## 1.13. tax_sum 物种注释统计
 
@@ -141,7 +143,7 @@ SHELL:=/bin/bash
 	# 稀释梯度抽样方法 richness (observed OTUs)-method fast / with_replacement / without_replacement , 结果位于 result/alpha/rare.txt
 	rare_method=without_replacement
 
-## 1.16. **beta_calc Beta多样性距离矩阵**
+## 1.16. beta_calc Beta多样性距离矩阵
 
 	# Beta diversity tree and distance matrix
 	# 距离矩阵计算方法，34种可选： abund_jaccard, binary_chisq, binary_chord, binary_euclidean, binary_hamming, binary_jaccard, binary_lennon, binary_ochiai, binary_otu_gain, binary_pearson, binary_sorensen_dice, bray_curtis, bray_curtis_faith, bray_curtis_magurran, canberra, chisq, chord, euclidean, gower, hellinger, kulczynski, manhattan, morisita_horn, pearson, soergel, spearman_approx, specprof, unifrac, unifrac_g, unifrac_g_full_tree, unweighted_unifrac, unweighted_unifrac_full_tree, weighted_normalized_unifrac, weighted_unifrac
@@ -149,7 +151,7 @@ SHELL:=/bin/bash
 	dis_method=bray_curtis,binary_jaccard,weighted_unifrac,unweighted_unifrac
 	tree_method=qiime
 
-## 1.17. **otutab_ref 有参比对生成OTU表**
+## 1.17. otutab_ref 有参比对生成OTU表
 
 	# 如Greengenes，可用于picurst, bugbase分析
 	# 比对方法和相似度同1.10 mapping
@@ -164,7 +166,7 @@ SHELL:=/bin/bash
 	# 设置子版本目录
 	sub=""
 	doc=doc/${sub}
-	design=${wd}/${doc}/design.txt 
+	design=${wd}/doc/design.txt 
 	g1=groupID
 	# tail -n+2 ${doc}/design.txt|cut -f 5|sort|uniq|awk '{print "\""$1"\""}'|tr "\n" ","
 	# 绘图使用的实验组，顺序即图中显示顺序；为空时使用所有组和默认顺序
@@ -364,11 +366,12 @@ SHELL:=/bin/bash
 
 ## 3.9 culture 可培养菌
 	 
-	# 可培养菌库类型，如组织root / rhizosphere / leaf, 品种A50 / IR24
+	# 可培养菌库类型，包括组织root / rhizosphere / leaf 和品种A50 / IR24
+	# 苜蓿medicago，包括A17 R108两个野生型品种根，A17Root, R108Root
 	# 拟南芥填 Root
 	type=""
 	# 指定可培养菌库位置，fa为OTU，fasta为物种如rice, ath
-	culture_db=/mnt/bai/yongxin/culture/rice/result/${type}culture_select.fasta
+	culture_db=/mnt/bai/yongxin/culture/rice/result/${type}culture_select
 	# 可培养菌结果输出文件
 	# 绘制Graphlan图的筛选阈值
 	graph_thre=0.001

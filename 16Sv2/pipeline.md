@@ -146,12 +146,12 @@ fq_qc: fq_trim
 # miniuniqusize为8，去除低丰度，增加计算速度
 fa_unqiue: 
 	touch $@
-#	usearch11 -fastx_uniques temp/filtered.fa \
-#		-minuniquesize ${minuniquesize} -sizeout \
-#		-fastaout temp/uniques.fa -threads ${p}
-	vsearch --derep_fulllength temp/filtered.fa \
-		--relabel Uni --minuniquesize ${minuniquesize} --sizeout \
-		--output temp/uniques.fa 
+	usearch11 -fastx_uniques temp/filtered.fa \
+		-minuniquesize ${minuniquesize} -sizeout \
+		-fastaout temp/uniques.fa -threads ${p}
+#	vsearch --derep_fulllength temp/filtered.fa \
+#		--relabel Uni --minuniquesize ${minuniquesize} --sizeout \
+#		--output temp/uniques.fa
 	echo -ne 'Unique reads\t' > ${otu_log}
 	grep -c '>' temp/uniques.fa >> ${otu_log}
 	cat ${otu_log}
@@ -228,25 +228,20 @@ else ifeq (${host_method}, sintax_silva)
 		-db ${usearch_silva} -sintax_cutoff ${sintax_cutoff} -strand both \
 		-tabbedout temp/otus_no_chimeras.tax -threads ${p}
 	grep -P -v 'Mitochondria|Chloroplast|Eukaryota|\t$$' temp/otus_no_chimeras.tax | cut -f 1 > temp/otus_no_host.id
-else ifeq (${host_method}, sintax_silva_its)
-	# 方法4. 基于silva132的usearch注释ITS，排除线粒体、叶绿体、细菌16S
-	usearch10 -sintax temp/otus_no_chimeras.fa \
-		-db ${usearch_silva} -sintax_cutoff ${sintax_cutoff} -strand both \
-		-tabbedout temp/otus_no_chimeras.tax -threads ${p}
-	# 仍有大量动物、植物和原生动物，目前只筛选真菌；植物spike-in注释为真菌
-	# grep -P -v 'Mitochondria|Chloroplast|Bacteria|\t$$' temp/otus_no_chimeras.tax | cut -f 1 > temp/otus_no_host.id
-	grep -P 'Fungi' temp/otus_no_chimeras.tax | cut -f 1 > temp/otus_no_host.id
 else ifeq (${host_method}, sintax_unite)
-	# 方法5. 基于unite筛选真菌
+	# 方法4. 基于unite筛选真菌
 	# usearch使用unite注释ITS筛选真菌
 	usearch10 -sintax temp/otus_no_chimeras.fa \
-		-db ${usearch_unite} -sintax_cutoff ${sintax_cutoff} -strand both \
+		-db ${utax_its} -sintax_cutoff ${sintax_cutoff} -strand both \
 		-tabbedout temp/otus_no_chimeras.tax -threads ${p}
 #	grep -P -v 'Fungi|\t$$' temp/otus_no_chimeras.tax | cut -f 1 > temp/otus_no_fungi.id
 #	cat <(grep '>' temp/otus_no_chimeras.fa|sed 's/>//') temp/otus_host.id temp/otus_no_fungi.id | sort | uniq -u > temp/otus_no_host.id
-	grep 'd:Fungi,p' temp/otus_no_chimeras.tax | cut -f 1 > temp/otus_no_host.id
+	# 只选择可信真菌
+	grep 'd:Fungi' temp/otus_no_chimeras.tax | cut -f 1 > temp/otus_no_host.id
+	# 只去除植物宿主
+	# grep -v 'd:Viridiplantae' temp/otus_no_chimeras.tax | cut -f 1 > temp/otus_no_host.id
 else ifeq (${host_method}, none)
-	# 方法6. 不过滤宿主和质体
+	# 方法5. 不过滤宿主和质体
 	cut -f 1 temp/otus_no_chimeras.tax > temp/otus_no_host.id
 else
 	# 其它：没有提供正确的方法名称，报错提示
@@ -324,14 +319,12 @@ otutab_filter: otutab_create
 	head -n 30 result/otutab.biom.sum
 
 
-	
-
 ## OTU表抽样标准化
 
 otutab_norm: otutab_filter
 	touch $@
-	# 依据最小样本量，设置OTU表标准化的阈值，如我们看到最小样品数据量为3.1万，可以抽样至3万
-	usearch11 -otutab_rare result/otutab.txt -sample_size ${sample_size} -output result/otutab_norm.txt 
+	# 依据最小样本量，设置OTU表标准化的阈值；如我们看到最小样品数据量为3.1万，可以抽样至3万；otutab无放回抽样时小于3万将丢弃，而otutab_norm采用有放回抽样不丢弃样本；默认按系统时间作为随机种子，可重复分析需指定randseed，如整数315
+	usearch11 -otutab_rare result/otutab.txt -sample_size ${sample_size} -output result/otutab_norm.txt -randseed 315
 	usearch10 -otutab_stats result/otutab_norm.txt -output result/otutab_norm.txt.stat
 	echo -ne "OtuNorm\t${sample_size}\t" >> ${log_otutable}
 	head -n3 result/otutab_norm.txt.stat|awk '{print $$1}'|tr '\n' '\t'|sed 's/\t$$/\n/' >> ${log_otutable}
@@ -355,7 +348,7 @@ tax_sum: tax_assign
 	touch $@
 	mkdir -p result/tax
 	# 未分类的添加末注释标记，否则汇总时报错
-	sed -i 's/\t$$/\td:Unassigned/' temp/otu.fa.tax
+	sed -i 's/\t$$/\td:Unclassified/' temp/otu.fa.tax
 	# 按门、纲、目、科、属水平分类汇总
 	# 默认用otutab_norm.txt，用otutab.txt是不是更好呢？
 	for i in p c o f g;do \
@@ -366,8 +359,8 @@ tax_sum: tax_assign
 	sed -i 's/(//g;s/)//g;s/\"//g;s/\/Chloroplast//g;s/\-/_/g;s/\//_/' result/tax/sum_*.txt
 	# 格式化物种注释：去除sintax中置信值，只保留物种注释，替换:为_，删除引号
 	cut -f 1,4 temp/otu.fa.tax | sed 's/\td/\tk/;s/:/__/g;s/,/;/g;s/"//g;s/\/Chloroplast//' > result/taxonomy_2.txt
-	# 生成物种表格：注意OTU中会有末知为空白，补齐分类未知新物种为Unassigned
-	awk 'BEGIN{OFS=FS="\t"} {delete a; a["k"]="Unassigned";a["p"]="Unassigned";a["c"]="Unassigned";a["o"]="Unassigned";a["f"]="Unassigned";a["g"]="Unassigned";a["s"]="Unassigned"; split($$2,x,";");for(i in x){split(x[i],b,"__");a[b[1]]=b[2];} print $$1,a["k"],a["p"],a["c"],a["o"],a["f"],a["g"],a["s"];}' result/taxonomy_2.txt | sed '1 i #OTU ID\tKingdom\tPhylum\tClass\tOrder\tFamily\tGenus\tSpecies' > result/taxonomy_8.txt
+	# 生成物种表格：注意OTU中会有末知为空白，补齐分类未知新物种为Unclassified
+	awk 'BEGIN{OFS=FS="\t"} {delete a; a["k"]="Unclassified";a["p"]="Unclassified";a["c"]="Unclassified";a["o"]="Unclassified";a["f"]="Unclassified";a["g"]="Unclassified";a["s"]="Unclassified"; split($$2,x,";");for(i in x){split(x[i],b,"__");a[b[1]]=b[2];} print $$1,a["k"],a["p"],a["c"],a["o"],a["f"],a["g"],a["s"];}' result/taxonomy_2.txt | sed '1 i #OTU ID\tKingdom\tPhylum\tClass\tOrder\tFamily\tGenus\tSpecies' > result/taxonomy_8.txt
 	# 去除#号和空格，会引起读取表格分列错误
 	sed -i 's/#//g;s/ //g' result/taxonomy_8.txt
 	# 添加物种注释
@@ -401,7 +394,7 @@ alpha_calc: tree_make
 	# 稀释曲线：取1%-100%的序列中OTUs数量 Rarefaction from 1%, 2% .. 100% in richness (observed OTUs)
 	# method fast / with_replacement / without_replacement ref: https://drive5.com/usearch/manual/cmd_otutab_subsample.html
 	usearch10 -alpha_div_rare result/otutab_norm.txt -output result/alpha/rare.txt -method ${rare_method}
-	# 标准化数据量少于10000，如1000时，稀释数据会出错
+	# 标准化数据量少于10000，如1000时，稀释数据会出错，第一行不完整且出现'-'，sed -i '/-/d' result/alpha/rare.txt 删除
 
 # 1.16 Beta多样性进化树和距离矩阵计算 Beta diversity tree and distance matrix
 
@@ -458,8 +451,8 @@ endif
 
 stamp_input: tax_sum
 	#touch $@
-	# Data does not form a strick hierarchy. Child Unassigned has multiple parents. 不允许在各级别有重名，可直接使用sum_tax的各级别给STAMP使用
-	#awk 'BEGIN{OFS=FS="\t"} NR==FNR {a[$$1]=$$0} NR>FNR {print a[$$1],$$0}' result/taxonomy_8.txt result/otutab_norm.txt | cut -f 2- | sed '1 s/#OTU ID/OTU/' | grep -v -P "Unassigned\tUnassigned" | grep -v '' > result/otutab_stamp.spf
+	# Data does not form a strick hierarchy. Child Unclassified has multiple parents. 不允许在各级别有重名，可直接使用sum_tax的各级别给STAMP使用
+	#awk 'BEGIN{OFS=FS="\t"} NR==FNR {a[$$1]=$$0} NR>FNR {print a[$$1],$$0}' result/taxonomy_8.txt result/otutab_norm.txt | cut -f 2- | sed '1 s/#OTU ID/OTU/' | grep -v -P "Unclassified\tUnclassified" | grep -v '' > result/otutab_stamp.spf
 
 
 ## 1.19 test按丰度过滤OTU表计算beta
@@ -511,7 +504,8 @@ clean:
 alpha_boxplot: 
 	touch $@
 	rm -f result/alpha/*.p??
-	alpha_boxplot.sh -i ${ab_input} -m ${ab_method} \
+	#	alpha_boxplot2.sh -i ${ab_input} -m ${ab_method} \
+	alpha_boxplot2.sh -i ${ab_input} -m ${ab_method} \
 		-d ${ab_design} -A ${ab_group_name} -B ${ab_group_list} \
 		-o ${ab_output} -h ${ab_height} -w ${ab_width}
 

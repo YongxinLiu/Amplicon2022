@@ -1,25 +1,46 @@
+## 快速分析 Quick Start(所需文件准备好)
 
-	# 快速分析 Quick Start(所需文件准备好)
-	find . -name "*" -type f -size 0c | xargs -n 1 rm -f # 清理零字节文件，用于从头重新分析项目清空makefile点位文件
-	make library_split # 样本拆分、
-	make fq_qc # 合并、去接头和引物、质控，获得纯净扩增子序列temp/filtered.fa
-	make host_rm # 序列去冗余、去噪、挑选代表序列、去嵌合、去宿主，获得OTU代表序列result/otu.fa
-	make beta_calc # 生成OTU表、过滤、物种注释、建库和多样性统计
-	# 清除统计绘图标记(重分析时使用)
-	rm -rf alpha_boxplot 
-	make DA_compare # 绘制alpha、beta、taxonomy和差异OTU比较
-	#rm -f plot_volcano # 删除OTU差异比较可化标记
-	make plot_manhattan # 绘制差异比较的火山图、热图、曼哈顿图
-	make plot_venn # 绘制OTU差异共有/特有维恩图
-	make DA_compare_tax # 高分类级差异比较，维恩图绘制，2为reads count负二项分布统计
-	make rmd # 生成网页报告，必须依赖的只有alpha, beta, taxonomy
+    # 清理零字节文件，用于从头重新分析项目清空makefile点位文件
+	find . -name "*" -type f -size 0c | xargs -n 1 rm -f 
+    rm -r temp result
+    # 建立程序必须目录
+	make 10init
 
-	# 提取脚本
-	submit=3T
-	make -n -B fq_qc > pipeline.sh # 样本拆分、合并、去接头和引物、质控，获得纯净扩增子序列temp/filtered.fa
-	make -n -B host_rm >> pipeline.sh # 序列去冗余、去噪、挑选代表序列、去嵌合、去宿主，获得OTU代表序列result/otu.fa
-	make -n -B beta_calc >> pipeline.sh # 生成OTU表、过滤、物种注释、建库和多样性统计
-	grep -v '#' pipeline.sh > ${submit}/pipeline.sh
+    # 1.1 实验设计检查
+	make 11validate_mapping
+    # 1.2 文库双端合并
+	make 12library_merge
+    # 1.3 提取Barcode
+	make 13extract_barcodes
+    # 1.4  拆分文库为样品并质控
+	make 14split_libraries
+	make 14split_libraries_stat
+    # 1.5 切除引物
+	make 15fq_trim
+    # 1.6 序列去冗余
+	make 16fa_unqiue
+    # 1.7 挑选OTU 
+	make 17otu_pick
+    # 1.8 基于参考序列去嵌合
+	make 18chimera_ref
+    # 1.9 去除宿主 remove host
+	make 19host_rm
+
+    # 2.1 生成OTU表
+	make 21otutab_create
+    # 2.2 OTU表筛选 Filter OTU table
+	make 22otutab_filter
+    # 2.3 OTU表抽样标准化
+	make 23otutab_norm
+    # 2.4 物种注释 Assign taxonomy
+	make 24tax_assign
+    # 2.5 物种分类汇总 Taxonomy summary
+	make 25tax_sum
+    # 2.6 多序列比对和进化树
+	make 26tree_make
+    # 2.7 筛选菌identify bac
+	make 27identify_isolate
+
 
 # 1. 处理序列 Processing sequences
 
@@ -27,18 +48,15 @@
 
 	## 0.1 准备流程配置文件
 
-	# 设置工作目录
-	wd=rice/miniCore
 	# 创建环境代码见~/github/Work/initial_project.sh
-
+	# 设置工作目录
+	wd=culture/medicago/190626
 	## 准备实验设计
-
 	cd ~/$wd
 	# Initialize the working directory
-	make init
+	make 10init
 
-	# 保存模板中basic页中3. 测序文库列表library为doc/library.txt
-	sed -i 's/\t/\tL171121_/' doc/library.txt # time check SeqLibraryList.xlsx
+	# 保存模板中basic页中3. 测序文库列表library为doc/library.txt，参考SeqLibraryList.xlsx，与/mnt/bai/yongxin/seq/amplicon目录中文件对应
 	# 按library中第二列index准备测序文库，如果压缩要添加.gz，并用gunzip解压
 	awk 'BEGIN{OFS=FS="\t"}{system("ln -s /mnt/bai/yongxin/seq/amplicon/"$2"_1.fq.gz seq/"$1"_1.fq.gz");}' <(tail -n+2 doc/library.txt )
 	awk 'BEGIN{OFS=FS="\t"}{system("ln -s /mnt/bai/yongxin/seq/amplicon/"$2"_2.fq.gz seq/"$1"_2.fq.gz");}' <(tail -n+2 doc/library.txt )
@@ -47,18 +65,30 @@
 	# 如果压缩文件，要强制解压链接
 	gunzip -f seq/*.gz
 
-	# 标准多文库实验设计拆分，保存模板中design页为doc/design_raw.txt
-	split_design.pl -i doc/design_raw.txt
-	# 从其它处复制实验设计
-	cp ~/ath/jt.HuangAC/batch3/doc/L*.txt doc/
-	# 删除多余空格，windows换行符等
-	sed -i 's/ //g;s/\r/\n/' doc/*.txt 
+
+	## 写mappingfile, s为物种，p为板数；多个library需要多个mappingfile
+	# 可指定品种、部位和培养基类型
+	# 单个文库
+	write_mappingfile_culture2.pl -o doc/L1.txt -s medicago -L L1 -v A17 -c Rhizosphere -m R2A -B 1 -p 1
+	# 批量相同属性文库
+	for i in `seq 1 10`; do write_mappingfile_culture2.pl -o doc/L${i}.txt -s medicago -L L${i} -v A17 -c Rhizosphere -m R2A -B 1 -p 48; done
+	# 按Library信息批量生成
+	# awk '{if(NR>1){system("echo "$1" "$6" "$7" "$8)}}' doc/library.txt
+	awk '{if(NR>1){system("write_mappingfile_culture2.pl -o doc/"$1".txt -s medicago -L "$1" -v "$6" -c "$7" -m "$8" -B "$9" -p "$10)}}' doc/library.txt
+	# L9, L10手动修改个性化数据，在Excel中手动修改 
+
+
+	# 删除多余空格，windows换行符等(MAC用户禁用)
+	sed -i 's/ //g;s/\r//' doc/*.txt
+	# 查看数据格式、列名，了解和检查实验设计
 	head -n3 doc/L1.txt
 	# 依据各文库L*.txt文件生成实验设计
 	cat <(head -n1 doc/L1.txt | sed 's/#//g') <(cat doc/L* |grep -v '#'|grep -v -P '^SampleID\t') > doc/design.txt
 	# 检查是否相等
 	wc -l doc/design.txt
 	cut -f 1 doc/design.txt|sort|uniq|wc -l
+	# 查看冗余的列(仅上方不等时使用)
+	cut -f 1 doc/design.txt|sort|uniq -c| less
 
 
 ## 1.2. 按实验设计拆分文库为样品
@@ -173,123 +203,67 @@
 	# 进化树，用于树图和多样性分析
 	make tree_make
 
-## 1.15. Alpha多样性指数计算
-	
-	# Calculate alpha diversity index
-	# alpha指数计算结果为 result/alpha/index.txt
-	# 稀释梯度结果位于 result/alpha/rare.txt
-	make alpha_calc
 
-## 1.16. Beta多样性距离矩阵计算
-	
-	# Beta diversity tree and distance matrix
-	# 最好用usearch，结果unifrac分类更好；clustero+fastree结果PCoA较差
-	make beta_calc
-	# ---Fatal error--- ../calcdistmxu.cpp(32) assert failed: QueryUniqueWordCount > 0 致信作者; 改用qiime1
+# 与实验菌建立联系
 
-## 1.17. 有参考构建OTU表
+ ## 注释分菌孔信息
+    awk 'BEGIN{OFS=FS="\t"} NR==FNR {a[$1]=$8"\t"$9"\t"$10} NR>FNR {print $0,a[$1]}' doc/design.txt result/culture_bacteria.xls > result/culture_bacteria_anno.xls
 
-	# Reference based OTU table
-	# otutab_gg 有参比对，如Greengenes，可用于picurst, bugbase分析
-	make otutab_gg
+## 筛选纯菌并建索引
+	tail -n+2 result/culture_select.xls | cut -f 1,2|sed 's/^/OTU_/g;s/;/\t/g'|less>result/culture_select.tax
+	filter_fasta.py -f result/otu.fa -o result/culture_select.fa -s result/culture_select.tax
+	sed -i 's/OTU/COTU/' result/culture_select.fa
+	makeblastdb -dbtype nucl -in result/culture_select.fa
+	makeblastdb -dbtype nucl -in result/otu.fa
 
 
+    ## 2019/7/3 与最新10个菌库比较，找OTU_2
+    cwd=culture10
+    mkdir -p ${cwd}
+    blastn -query ~/medicago/AMF2/result/otu.fa -db result/culture_select.fa -out ${cwd}/otu_culture.blastn -outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs' -num_alignments 10 -evalue 1 -num_threads 9 # 输出13列为coverage
+    # 查看关注菌对应的编号 
+    less -S ${cwd}/otu_culture.blastn 
+    blastn -query ~/medicago/AMF2/result/otu.fa -db result/otu.fa -out ${cwd}/otu_culture_all.blastn -outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs' -num_alignments 10 -evalue 1 -num_threads 9 # 输出13列为coverage
 
-# 2. 统计绘图 Statistics and plot
+    # 进一步筛选第三位出现的菌是否存在有OTU_61，修改程序名，输出文件名+2，每个孔有Top3的结果
+    Rscript ~/github/Amplicon/16Sculture2/script/identify_isolate2.R
+    awk 'BEGIN{OFS=FS="\t"} NR==FNR {a[$1]=$8"\t"$9"\t"$10} NR>FNR {print $0,a[$1]}' doc/design.txt result/culture_bacteria2.xls > result/culture_bacteria2_anno.xls
+    # 检查了第三列中OTU_61，数据只只有1-5条，且丰度在0.5%以下
 
-## 2.1. Alpha多样性指数箱线图
-	
-	# Alpha index in boxplot
-	make alpha_boxplot
-
-## 2.2. Alpha丰富度稀释曲线
-	
-	# Alpha rarefracation curve
-	make alpha_rare
-
-## 2.3. 主坐标轴分析距离矩阵
-	
-	# PCoA of distance matrix
-	make beta_pcoa
-
-## 2.4. 限制性主坐标轴分析
-
-	# Constrained PCoA / CCA of bray distance matrix
-	# OTU表基于bray距离和CCA，至少3个组 
-	make beta_cpcoa
-
-## 2.5. 样品和组各级分类学堆叠柱状图
-
-	# Stackplot showing taxonomy in each level
-	make tax_stackplot
-
-## 2.6. 组间差异比较 
-	
-	# Group compareing by edgeR or wilcox
-	# 可选负二项分布，或wilcoxon秩和检验
-	make DA_compare
-	make DA_compare_tax
-	make plot_volcano
-	make plot_heatmap
-	make plot_manhattan
-
-# 3. 高级分析
-
-## 3.9 培养菌注释
-
-	# 默认为水稻，包括相似度、覆盖度、丰度和物种注释，请修改参数处菌库位置和注释文件
-	make culture
-
-# 4. 个性分析
-
-## 4.1. 分蘖与菌相关性
-
-	# 准备相关输入文件
-	cd ~/rice/miniCore/180718
-	# 硬链数据文件，保持可同步修改和可备份
-	# miniCore分蘖数据整理
-	ln ~/rice/xianGeng/doc/phenotype_sample_raw.txt doc/
-	# LN otu表和实验设计
-	mkdir -p data
-	cp ~/rice/miniCore/180319/LN/otutab.txt data/LN_otutab.txt
-	cp ~/rice/miniCore/180319/doc/design.txt doc/design_miniCore.txt
-	mkdir -p data/cor/LN
-	# 物种注释
-	cp ~/rice/miniCore/180319/temp/otus_no_host.tax data/
-
-	# 统计见script/cor_tiller_LN.Rmd
-	# 相关系数，添加物种注释
-	awk 'BEGIN{FS=OFS="\t"} NR==FNR{a[$1]=$4} NR>FNR{print $0,a[$1]}' result/otus_no_host.tax data/cor/LN/otu_mean_pheno_cor.r.txt | less -S > result/cor/LN/otu_mean_pheno_cor.r.txt.tax
-	# 再添加可培养相关菌
-	awk 'BEGIN{FS=OFS="\t"} NR==FNR{a[$1]=$0} NR>FNR{print $0,a[$1]}' result/39culture/otu.txt data/cor/LN/otu_mean_pheno_cor.r.txt.tax | less -S > data/cor/LN/otu_mean_pheno_cor.r.txt.tax
+    ## 筛选某个指定OTU
+    Rscript ~/github/Amplicon/16Sculture2/script/select_OTU.R
+    # 添加孔实验设计注释
+    awk 'BEGIN{OFS=FS="\t"} NR==FNR {a[$1]=$8"\t"$9"\t"$10} NR>FNR {print $0,a[$1]}' doc/design.txt result/otu61.txt > result/otu61.anno.txt
+    # 添加孔详细
+    awk 'BEGIN{OFS=FS="\t"} NR==FNR {a[$1]=$0} NR>FNR {print $0,a[$1]}' result/culture_bacteria2_anno.xls result/otu61.txt > result/otu61.anno.txt
+    # 添加每个COTU与OTU1的相似度
+    echo 'OTU_2' > ${cwd}/otu2.id
+	filter_fasta.py -f ~/medicago/AMF2/result/otu.fa -o ${cwd}/bacillus.fa -s ${cwd}/otu2.id
+    makeblastdb -dbtype nucl -in ${cwd}/bacillus.fa
+    blastn -query result/otu.fa -db ${cwd}/bacillus.fa -out ${cwd}/cotu_otu2.blastn -outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs' -num_alignments 1 -evalue 1 -num_threads 9 # 输出13列为coverage
+    awk 'BEGIN{OFS=FS="\t"} NR==FNR {a[$1]=$3} NR>FNR {print $0,a[$8]}' ${cwd}/cotu_otu2.blastn result/otu61.anno.txt > result/otu61.anno2.txt
 
 
-# 附录
-	## 准备原始数据
+    # 与其它物种菌库比对
+    # 拟南芥
+    blastn -query ${cwd}/bacillus.fa -db ~/culture/ath/result/Rootculture_select.fa -out ${cwd}/ath_otu2.blastn -outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs' -num_alignments 10 -evalue 1 -num_threads 9
+    less  ${cwd}/ath_otu2.blastn # 有COTU_317 100%匹配
+    # 与菌保比对
+    blastn -query ${cwd}/bacillus.fa -db ~/culture/ath/wet/root_leaf.fa -out ${cwd}/ath_otu2_stock.blastn -outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs' -num_alignments 10 -evalue 1 -num_threads 9
+    less  ${cwd}/ath_otu2_stock.blastn # 有COTU_317 100%匹配
 
-	# 拆lane和质量转换归为原始seq目录中处理
-	# Prepare raw data
-	#ln ~/seq/180210.lane9.ath3T/Clean/CWHPEPI00001683/lane_* ./
-	#cp ~/ath/jt.HuangAC/batch3/doc/library.txt doc/
-	
-	# 检查数据质量，转换为33
-	#determine_phred-score.pl seq/lane_1.fq.gz
-	# 如果为64，改原始数据为33
-	rename 's/lane/lane_33/' seq/lane_*
-	# 关闭质量控制，主要目的是格式转换64至33，不然usearch无法合并
-	#time fastp -i seq/lane_64_1.fq.gz -I seq/lane_64_2.fq.gz \
-	#	-o seq/lane_1.fq.gz -O seq/lane_2.fq.gz -6 -A -G -Q -L -w 9
-	# 1lane 80GB, 2 threads, 102min
 
-## 1.1. 按实验设计拆分lane为文库
+    # 水稻
+    blastn -query ${cwd}/bacillus.fa -db ~/culture/rice/result/culture_select.fasta -out ${cwd}/rice_otu2.blastn -outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs' -num_alignments 10 -evalue 1 -num_threads 9
+    less  ${cwd}/rice_otu2.blastn # 有rice_311 100%匹配
+    # 直接比对水稻菌保
+    blastn -query ${cwd}/bacillus.fa -db ~/culture/rice/190626/sanger_stock/16S_rice_culture_collection.fasta -out ${cwd}/rice_otu2.blastn -outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs' -num_alignments 10 -evalue 1 -num_threads 9
+    less  ${cwd}/rice_otu2.blastn # 与3菌株100%一致
 
-	# Split lane into libraries
-	# lane文件一般为seq/lane_1/2.fq.gz
-	# lane文库信息doc/library.txt：至少包括编号、Index和样品数量三列和标题
-	# head -n3 doc/library.txt
-	#LibraryID	IndexRC	Samples
-	#L1	CTCAGA	60
-	
-	# 按library.txt拆分lane为library
-	# make lane_split
+
+
+    # 小麦
+    blastn -query ${cwd}/bacillus.fa -db ~/culture/wheat/result/culture_select.fa -out ${cwd}/wheat_otu2.blastn -outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs' -num_alignments 10 -evalue 1 -num_threads 9
+    less  ${cwd}/wheat_otu2.blastn # 有rice_311 100%匹配，OTU_128
+
 

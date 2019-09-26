@@ -284,13 +284,16 @@ if (${normalization}){
 	# 非标准化时为，默认抽样10000，除以100标准为百分比
 	norm=t(otutab)*${unit}
 }
-# 筛选组信
+# 检查样本标准化后是否为100
+# rowSums(norm)
+
+# 筛选组，按组求中位数
 # grp = design[, "${g2}", drop=F] # 需要按第二条件筛选时使用
 grp = design[, "${g2}", drop=F]
 # 按行名合并
 mat_t2 = merge(grp, norm, by="row.names")
 mat_t2 = mat_t2[,-1]
-# 按组求中位数
+# 按组求中位数，中位数筛选更有效去除异常值
 mat_mean = aggregate(mat_t2[,-1], by=mat_t2[1], FUN=median) # mean
 mat_mean_final = do.call(rbind, mat_mean)[-1,]
 geno = mat_mean\$group
@@ -298,6 +301,12 @@ colnames(mat_mean_final) = geno
 # 按丰度按组中位数筛选
 filtered = mat_mean_final[apply(mat_mean_final,1,max) >= ${abundance_threshold}, ] # select OTU at least one sample > 0.1%
 otutab = otutab[rownames(filtered),]
+
+# 按均值输出和保存相对丰度，汇总才为真实丰度
+mat_mean = aggregate(mat_t2[,-1], by=mat_t2[1], FUN=mean) # mean
+mat_mean_final = do.call(rbind, mat_mean)[-1,]
+geno = mat_mean\$group
+colnames(mat_mean_final) = geno
 
 # 生成compare的database用于注释
 mat_mean_high = mat_mean_final[rownames(filtered),]
@@ -512,15 +521,17 @@ compare_DA = function(compare){
 	SampAvsB=paste(group_list[1] ,"-", group_list[2], sep="")
 	idx = design\$group %in% group_list
 	sub_design=design[idx, , drop = F]
-	sub_dat=as.matrix(otutab[,rownames(sub_design)])
-
-	# wilcoxon秩合检验，需要先标准化
-	# normlization to percentage
-	if (${normalization}){
-		sub_norm = t(t(sub_dat)/colSums(sub_dat,na=T))*100
-	}else{
-		sub_norm = as.matrix(otutab) * ${unit} # 数据类型一致，计算后矩阵
-	}
+#	sub_dat=as.matrix(otutab[,rownames(sub_design)])
+#
+#	# wilcoxon秩合检验，需要先标准化
+#	# normlization to percentage
+#	if (${normalization}){
+#		sub_norm = t(t(sub_dat)/colSums(sub_dat,na=T))*100
+#	}else{
+#		sub_norm = as.matrix(otutab) * ${unit} # 数据类型一致，计算后矩阵
+#	}
+    norm = as.data.frame(t(norm))
+    sub_norm = as.matrix(norm[rownames(filtered),])
 	# 建立两组的矩阵
 	idx = sub_design\$group %in% group_list[1]
 	GroupA = sub_norm[,rownames(sub_design[idx,,drop=F])]

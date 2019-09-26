@@ -51,8 +51,8 @@
 	split_design.pl -i doc/design_raw.txt
 	# 从其它处复制实验设计
 	cp ~/ath/jt.HuangAC/batch3/doc/L*.txt doc/
-	# 删除多余空格，windows换行符等
-	sed -i 's/ //g;s/\r/\n/' doc/*.txt 
+	# 删除多余空格，windows换行符等(苹果用户勿用)
+	sed -i 's/ //g;s/\r//' doc/*.txt 
 	head -n3 doc/L1.txt
 	# 依据各文库L*.txt文件生成实验设计
 	cat <(head -n1 doc/L1.txt | sed 's/#//g') <(cat doc/L* |grep -v '#'|grep -v -P '^SampleID\t') > doc/design.txt
@@ -63,9 +63,6 @@
 
 ## 1.2. 按实验设计拆分文库为样品
 
-
-	# 拆分样品
-	head -n3 doc/L1.txt
 	# 按L1/2/3...txt拆分library为samples
 	# 输入为seq/L*.fq，输出为seq/sample/*.fq
 	make library_split
@@ -89,6 +86,7 @@
 	# Cut primers and lables
 	# 切除左端标签和引物，右端 引物
 	# Cut barcode 10bp + V5 19bp in left， and V7 18bp in right
+	# Cut barcode 10bp + ITS1F 22bp in left， and ITS2 20bp in right
 	# 输入为seq/all.fq，输出为temp/stripped.fq
 	make fq_trim
 
@@ -109,6 +107,7 @@
 
 	# Remove redundancy, get unique reads
 	# 输入为temp/filtered.fa，输出为temp/uniques.fa
+	# 如最后一行输出数据据量53M，推荐阈值为53，筛选标准为百万分之一
 	make fa_unqiue
 
 
@@ -187,7 +186,7 @@
 	make beta_calc
 	# ---Fatal error--- ../calcdistmxu.cpp(32) assert failed: QueryUniqueWordCount > 0 致信作者; 改用qiime1
 
-## 1.17. 有参考构建OTU表
+## 1.17. 有参考构建OTU表-非16S不可用
 
 	# Reference based OTU table
 	# otutab_gg 有参比对，如Greengenes，可用于picurst, bugbase分析
@@ -225,13 +224,17 @@
 
 ## 2.6. 组间差异比较 
 	
-	# Group compareing by edgeR or wilcox
-	# 可选负二项分布，或wilcoxon秩和检验
+	# Group compareing by edgeR, wilcox or ttest
+	# 可选负二项分布GLM、Wilcoxon秩和检验或T检验
 	make DA_compare
 	make DA_compare_tax
 	make plot_volcano
 	make plot_heatmap
 	make plot_manhattan
+
+## 2.7 绘制维恩图和生成报告
+	make plot_venn # 绘制OTU差异共有/特有维恩图
+	make rmd # 生成网页报告，必须依赖的只有alpha, beta, taxonomy
 
 # 3. 高级分析
 
@@ -292,4 +295,10 @@
 	
 	# 按library.txt拆分lane为library
 	# make lane_split
+
+
+# 常见问题
+
+## alpha_rare 出错，第一行不完整列，可删除
+	sed -i '/-/d' result/alpha/rare.txt
 
