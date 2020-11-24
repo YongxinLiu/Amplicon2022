@@ -46,7 +46,7 @@ my $start_time=time;
 print strftime("Start time is %Y-%m-%d %H:%M:%S\n", localtime(time));
 $opts{i}="/mnt/bai/yongxin/github/Amplicon/16Sculture2/doc/barcodeF96.txt" unless defined($opts{i});
 $opts{b}="/mnt/bai/yongxin/github/Amplicon/16Sculture2/doc/barcodeR48.txt" unless defined($opts{b});
-$opts{P}=48 unless defined($opts{p});
+$opts{p}=48 unless defined($opts{p});
 $opts{o}="L1.txt" unless defined($opts{o});
 $opts{F}="AACMGGATTAGATACCCKG" unless defined($opts{F});
 $opts{R}="ACGTCATCCCCACCTTCC" unless defined($opts{R});

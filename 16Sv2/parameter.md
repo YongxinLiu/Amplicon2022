@@ -111,7 +111,7 @@ SHELL:=/bin/bash
 	min_sample_size=5000
 	# 按矩阵中每个点count, freq筛选，低于阈值变为0
 	# 按OTU丰度和频率筛选，如OTU测序量至少8次，相对丰度百万分之一(建议挑选序列去冗余部分调高阈值更合理)
-	min_otu_size=8
+	min_otu_size=${minuniquesize}
 	# 按频率筛选，推荐十万分之一0.00001，范围千一至百分一0.001 - 0.000001之间
 	min_otu_freq=0.000001
 	# 抽样标准化的值，推荐最小10000，根据统计结果选择筛选后最小值或可保留大部分样品的值
@@ -258,7 +258,7 @@ SHELL:=/bin/bash
 	# 散点图是否按组添加置信椭圆，TRUE添加，FALSE不添加，默认T
 	bc_ellipse=TRUE
 
-	# 2.5 tax_stackplot 样品和组分类学各级别的堆叠柱状图 Stackplot showing taxonomy in each level
+## 2.5 tax_stackplot 样品和组分类学各级别的堆叠柱状图 Stackplot showing taxonomy in each level
 	ts_input=${wd}/result/tax/sum_
 	ts_level='"p","pc","c","o","f","g"'
 	ts_design=${design}
@@ -272,7 +272,8 @@ SHELL:=/bin/bash
 	# 设置图例的顺序，默认FALSE按分类单元字母顺序排列，TRUE则按丰度由到大小排列
 	ts_order=FALSE
 
-### 2.6 DA_compare 组间差异比较
+## 2.6 DA_compare 丰度筛选和组间差异比较
+	# DA_compare2 Mearable OTU筛选和组间差异比较两步法
 	Dc_input=${wd}/result/otutab.txt
 	# 差异比较方法edgeR or wilcox，默认edgeR
 	Dc_compare=${compare}

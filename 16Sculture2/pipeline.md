@@ -338,7 +338,7 @@ endif
 27identify_isolate: 26tree_make
 
 	touch $@
-	Rscript ~/github/Amplicon/16Sculture2/script/identify_isolate.r
+	Rscript /mnt/bai/yongxin/github/Amplicon/16Sculture2/script/identify_isolate.r
 
 
 ## 9.9 清理中间文件

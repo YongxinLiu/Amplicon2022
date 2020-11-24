@@ -250,7 +250,7 @@ for(m in method){
 	capscale.gen = capscale(otutab ~ group, data=sub_design, add=F, sqrt.dist=T, distance= m) 
 
 	# ANOVA-like permutation analysis
-	perm_anova.gen = anova.cca(capscale.gen, permutations = 10000, parallel = 9)
+	perm_anova.gen = anova.cca(capscale.gen, permutations = 1000, parallel = 9)
 
 	# generate variability tables and calculate confidence intervals for the variance
 	var_tbl.gen = variability_table(capscale.gen)

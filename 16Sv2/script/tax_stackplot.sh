@@ -243,7 +243,7 @@ for(m in method){
 
 	# 保存变量备份，并输出至文件
 	merge_tax=mean_sort
-	write.table("Taxonomy\t\t", file=paste("${output}", m, "_sample.txt",sep=""),append = F, quote = F, eol = "", row.names = F, col.names = F)
+	write.table("Taxonomy\t", file=paste("${output}", m, "_sample.txt",sep=""),append = F, quote = F, eol = "", row.names = F, col.names = F)
 	suppressWarnings(write.table(merge_tax, file=paste("${output}", m, "_sample.txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T))
 
 	# 提取样品组信息,默认为genotype可指定

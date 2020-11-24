@@ -58,8 +58,8 @@ if (TRUE){
                 help="design file; 实验设计文件 [default %default]"),
     make_option(c("-n", "--group"), type="character", default="group",
                 help="name of group type; 分组列名 [default %default]"),
-    make_option(c("-N", "--number"), type="character", default=3,
-                help="Number of sample in each group; 每组保留样本数量，默认为3，如15个样建议使用12 [default %default]"),
+    make_option(c("-N", "--topN"), type="numeric", default=3,
+                help="name of samples selected; [default %default]"),
     make_option(c("-w", "--width"), type="numeric", default=4,
                 help="Width of figure; 图片宽 [default %default]"),
     make_option(c("-e", "--height"), type="numeric", default=2.5,
@@ -142,7 +142,7 @@ dis=dis[rownames(design),rownames(design)]
 group_list= as.vector(unique(design$group))
 
 write.table("SampleID\tDistance", file=paste(opts$output,"_samples_all.txt",sep = ""), append = F, sep="\t", quote=F, row.names=F, col.names=F)
-write.table("SampleID\tDistance", file=paste(opts$output,"_samples_top3.txt",sep = ""), append = F, sep="\t", quote=F, row.names=F, col.names=F)
+write.table("SampleID\tDistance", file=paste(opts$output,"_samples_top.txt",sep = ""), append = F, sep="\t", quote=F, row.names=F, col.names=F)
 
 
 for (i in group_list){
@@ -153,25 +153,57 @@ for (i in group_list){
   sub_dis=dis[rownames(sub_design),rownames(sub_design)]
 
 
+# 4. 统计与绘图
+
+# vegan:cmdscale计算矩阵矩阵中主坐标轴坐标，取前3维
+if (dim(sub_design)[1]>3){
+#pcoa = cmdscale(sub_dis, k=3, eig=T) # k is dimension, 3 is recommended; eig is eigenvalues
+#points = as.data.frame(pcoa$points) # get coordinate string, format to dataframme
+#eig = pcoa$eig
+## points = cbind(points, sub_design[rownames(points),"group"])
+#points = cbind(points, sub_design[rownames(points),"group"])
+#colnames(points) = c("x", "y", "z","group") 
+#
+## plot PCo 1 and 2
+#p = ggplot(points, aes(x=x, y=y, color=group)) + geom_point(alpha=.7, size=2) +
+#  labs(x=paste("PCoA 1 (", format(100 * eig[1] / sum(eig), digits=4), "%)", sep=""),
+#       y=paste("PCoA 2 (", format(100 * eig[2] / sum(eig), digits=4), "%)", sep=""),
+#       title=paste(opts$type," PCoA",sep=""))   + 
+#  stat_ellipse(level=0.68) + theme_classic()
+# p
+# # 保存pdf和png格式方便查看和编辑
+# ggsave(paste(opts$output, ".pdf", sep=""), p, width = opts$width, height = opts$height)
+# # ggsave(paste(opts$output, ".png", sep=""), p, width = opts$width, height = opts$height)
+# print(paste(opts$output, ".pdf finished.", sep = ""))
+
+# 添加样品标签
+#p=p+geom_text_repel(label=paste(rownames(points)),colour="black",size=3)
+#p
+# 保存pdf和png格式方便查看和编辑
+#ggsave(paste(opts$output, i, ".pdf", sep=""), p, width = opts$width, height = opts$height)
+#print(paste(opts$output, i, ".pdf", sep=""))
+
+}
 
 # 计算组内每个样品的总距离 
   
-# 条件判断：当样品数量大于1时才能排序
+# 条件判断：当样品数量大于1时，统计1时直接赋0
 if (dim(sub_design)[1]>1){
+  
 inner_dis = data.frame(SampleID=rownames(sub_dis), Distance=rowSums(sub_dis))
 # 按距离排序
 inner_dis=arrange(inner_dis,Distance)
 write.table(inner_dis, file=paste(opts$output,"_samples_all.txt",sep = ""), append = TRUE, sep="\t", quote=F, row.names=F, col.names=F)
 # 如果大于3个，取前3，小于全取
-if (dim(inner_dis)[1]> opts$number){
-  inner_dis=head(inner_dis,n = opts$number)
+if (dim(inner_dis)[1] > opts$topN){
+  inner_dis=head(inner_dis, n = opts$topN)
 }
 
 }else{
   inner_dis = data.frame(SampleID=c(rownames(sub_design)), Distance=c(0))
   
 }
-write.table(inner_dis, file=paste(opts$output,"_samples_top3.txt",sep = ""), append = TRUE, sep="\t", quote=F, row.names=F, col.names=F)
+write.table(inner_dis, file=paste(opts$output,"_samples_top.txt",sep = ""), append = TRUE, sep="\t", quote=F, row.names=F, col.names=F)
 
 }
 

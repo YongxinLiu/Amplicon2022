@@ -210,13 +210,19 @@ otutab = read.table(paste("${input}", sep=""), header=T, row.names=1, sep="\t", 
 # 实验设计与输入文件交叉筛选
 idx = rownames(design) %in% colnames(otutab)
 design = design[idx,]
-otutab = otutab[,rownames(design)]
+
+if (length(rownames(design))==1){
+    otutab = otutab[, rep(rownames(design),2)]
+}else{
+    otutab = otutab[,rownames(design)]
+}
+
 
 # 按丰度值按组中位数筛选OTU
 # 标准化为比例，并转置
 norm = t(otutab)/colSums(otutab,na=T)*100
 
-mean = data.frame(OTUID = rownames(otutab), Mean = round(colMeans(norm),3))
+mean = data.frame(OTUID = rownames(otutab), Mean = round(colMeans(norm),5))
 # 筛选组信
 #grp = design[, "group", drop=F]
 ## 按行名合并

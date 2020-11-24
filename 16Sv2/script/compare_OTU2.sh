@@ -14,9 +14,9 @@ compare=doc/compare.txt
 output=result/compare/
 execute=TRUE
 order=FALSE
-pvaule=0.01
+pvalue=0.05
 FDR=0.05
-fold_change=1.3
+fold_change=1.1
 abundance_threshold=0.0001
 taxonomy=result/taxonomy_8.txt
 # 矩阵自身标准化
@@ -31,33 +31,24 @@ cat <<EOF >&2
 Usage:
 -------------------------------------------------------------------------------
 Filename:    compare.sh
-Version:     1.6
-Date:        2020/6/5
+Version:     1.1
+Date:        2020/6/3
 Author:      Yong-Xin Liu
 Email:       metagenome@126.com
 Website:     https://blog.csdn.net/woodcorpse
 Description: Group compare by edgeR or wilcon.test
-Notes:       Input OTU table mustbe in raw reads counts
+Notes:       Input OTU table must be in raw reads counts and measurable norm OTU table
 -------------------------------------------------------------------------------
-Copyright:   2020 (c) Yong-Xin Liu
+Copyright:   2018 (c) Yong-Xin Liu
 License:     GPL
 If used this script, please cited:
-Yong-Xin Liu, Yuan Qin, Tong Chen, Meiping Lu, Xubo Qian, Xiaoxuan Guo, Yang Bai. (2020). A practical guide to amplicon and metagenomic analysis of microbiome data. Protein Cell 41 1-16.
+Jingying Zhang, Yong-Xin Liu, et al. 
+NRT1.1B is associated with root microbiota composition and nitrogen use in field-grown rice.
+Nature Biotechnology. 2019, 37: 676-684. doi:10.1038/s41587-019-0104-4
 -------------------------------------------------------------------------------
-Version 1.0 2018/4/7
-Group compare by edgeR or wilcon.test, input OTU table mustbe in raw reads counts
-Version 1.1 2018/4/9
-Add wilcox rank test, select method in wilcox
-Version 1.2 2018/5/3
-Add taxonomy in result, reture taxonomy sorted result
-Version 1.3 2018/5/24
-Add matrix normalization paramter, default TRUE, can trun off
-Version 1.4 2018/6/13
-添加维恩列表初始化为空，和结束时简化；OTU丰度筛选可修改为不同组
-Version 1.5 2019/4/12
-修正差异列表头为对数具体值
-Version 1.6 2020/6/5
-输出无显著差异的结果
+Version 1.0 2020/1/14
+Version 1.1 2020/6/3
+
 
 # All input and output should be in default directory, or give relative or absolute path by -i/-d
 
@@ -83,29 +74,25 @@ OPTIONS:
 	-e execuate Rscript, default TRUE
 	-i OTU table in reads counts, default result/otutab.txt
 	-m statistics method, default edgeR, alternative wilcon
-	-o output director, default result/tax/
-	-p pvaule, default 0.01
+	-o output director, default result/compare/
+	-p pvaule, default 0.05
 	-q FDR/qvalue, default 0.05
-	-s text size, default 7
-	-t taxonomy file, default 7
-	-w figure width, default 8
+	-f ref, reference otutab, default 
 	-A group name
 	-B group selected list, empty will not select
-	-C group name2, alternative select for abundance
-	-F fold change, default 1.3
-	-O order of legend, default FALSE alphabet, set TRUE abundance
+	-F fold change, default 1.1
 	-U adjust unit, default 1
 	-? show help of script
 
 Example:
-compare.sh -i ${input} -m '${method}' -d ${design} -A ${g1} -B '${g1_list}' -o ${output} -O ${order} -w ${width} -h ${height}
+compare_OTU2.sh -i ${input} -m '${method}' -d ${design} -A ${g1} -o ${output}
 
 EOF
 }
 
 
 # 参数解析 Analysis parameter
-while getopts "c:d:e:h:i:m:n:o:p:q:s:t:w:A:B:C:F:O:N:U:" OPTION
+while getopts "c:d:e:h:i:m:n:o:p:q:r:s:t:w:A:B:C:F:O:N:U:" OPTION
 do
 	case $OPTION in
 		c)
@@ -137,6 +124,9 @@ do
 			;;
 		q)
 			FDR=$OPTARG
+			;;
+		r)
+			ref=$OPTARG
 			;;
 		s)
 			text_size=$OPTARG
@@ -189,15 +179,15 @@ fi
 mkdir -p script
 
 # 开始写R统计绘图脚本
-cat <<END >script/compare.R
+cat <<END >script/compare_OTU2.R
 #!/usr/bin/env Rscript
 # 
-# Copyright 2016-2018 Yong-Xin Liu <metagenome@126.com>
+# Copyright 2016-2020 Yong-Xin Liu <metagenome@126.com>
 
 # If used this script, please cited:
-#   Zhang, J., Zhang, N., Liu, Y.X., Zhang, X., Hu, B., Qin, Y., Xu, H., Wang, H., Guo, X., Qian, J., et al. (2018).
-# Root microbiota shift in rice correlates with resident time in the field and developmental stage. Sci China Life Sci 61, 
-# https://doi.org/10.1007/s11427-018-9284-4
+#    Jingying Zhang, Yong-Xin Liu, et al. 
+#    NRT1.1B is associated with root microbiota composition and nitrogen use in field-grown rice.
+#    Nature Biotechnology. 2019, 37: 676-684. doi:10.1038/s41587-019-0104-4
 
 # 手动运行脚本请，需要设置工作目录，使用 Ctrl+Shift+H 或 Session - Set Work Directory - Choose Directory / To Source File Location 设置工作目录
 
@@ -238,17 +228,6 @@ for(p in package_list){
 	}
 }
 
-# 2.3 安装Github常用包
-# 参数解析、数据变换、绘图和开发包安装
-package_list = c("kassambara/ggpubr")
-for(p in package_list){
-	q=unlist(strsplit(p,split = "/"))[2]
-	if(!suppressWarnings(suppressMessages(require(q, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
-		install_github(p)
-		suppressWarnings(suppressMessages(library(q, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
-	}
-}
-
 
 # 3. 读取输入文件
 write.table("ID\\ttype", file=paste("${output}/diff.list", sep=""), append = F, sep="\t", quote=F, row.names=F, col.names=F)
@@ -267,10 +246,10 @@ if ($select1){
 
 # 读取OTU表
 otutab = read.table(paste("${input}", sep=""), header=T, row.names=1, quote = "", sep="\t", comment.char="") 
-# Show features (include OTU/ASV/Taxonomy) numbers
-print("Total features number")
+# 显示OTU问题
+print("Total OTUs number")
 print(dim(otutab)[1])
-
+#
 # 实验设计与输入文件交叉筛选
 idx = rownames(design) %in% colnames(otutab)
 design = design[idx, , drop = F]
@@ -279,44 +258,38 @@ otutab = otutab[,rownames(design)]
 # 按丰度值按组中位数筛选OTU
 # 标准化为百分比例，并转置
 if (${normalization}){
-	norm = t(otutab)/colSums(otutab,na=T)*${unit}
+	norm = t(otutab)/colSums(otutab,na=T)*100
 }else{
 	# 非标准化时为，默认抽样10000，除以100标准为百分比
 	norm=t(otutab)*${unit}
 }
-# 检查样本标准化后是否为100
-# rowSums(norm)
-
-# 筛选组，按组求中位数
+# 筛选组信
 # grp = design[, "${g2}", drop=F] # 需要按第二条件筛选时使用
 grp = design[, "group", drop=F]
 # 按行名合并
 mat_t2 = merge(grp, norm, by="row.names")
 mat_t2 = mat_t2[,-1]
-# 按组求中位数，中位数筛选更有效去除异常值
+# 按组求中位数
 mat_mean = aggregate(mat_t2[,-1], by=mat_t2[1], FUN=median) # mean
 mat_mean_final = do.call(rbind, mat_mean)[-1,]
 geno = mat_mean\$group
 colnames(mat_mean_final) = geno
 # 按丰度按组中位数筛选
-filtered = mat_mean_final[apply(mat_mean_final,1,max) >= ${abundance_threshold}, ] # select OTU at least one sample > 0.1%
-otutab = otutab[rownames(filtered),]
-
-# 按均值输出和保存相对丰度，汇总才为真实丰度
-mat_mean = aggregate(mat_t2[,-1], by=mat_t2[1], FUN=mean) # mean
-mat_mean_final = do.call(rbind, mat_mean)[-1,]
-geno = mat_mean\$group
-colnames(mat_mean_final) = geno
+#filtered = mat_mean_final[apply(mat_mean_final,1,max) >= ${abundance_threshold}, ] # select OTU at least one sample > 0.1%
+norm = read.table(paste("${ref}", sep=""), header=T, row.names=1, quote = "", sep="\t", comment.char="") 
+otutab = otutab[rownames(norm),]
+print("Measurable OTUs number")
+print(dim(otutab)[1])
 
 # 生成compare的database用于注释
-mat_mean_high = mat_mean_final[rownames(filtered),]
+mat_mean_high = mat_mean_final[rownames(norm),]
 write.table(paste("OTUID\t",sep=""), file=paste("${output}", "database.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
 suppressWarnings(write.table(round(mat_mean_high,5), file=paste("${output}", "database.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
 
 print("Selected high abundance OTUs number")
 print(dim(mat_mean_high)[1])
 
-print(colSums(mat_mean_high))
+colSums(mat_mean_high)
 
 END
 
@@ -324,7 +297,7 @@ END
 
 if [ $method = "edgeR" ]; then
 	
-cat <<END >>script/compare.R
+cat <<END >>script/compare_OTU2.R
 
 print(paste("你正在edgeR的负二项分布普通线性模型glmLRT方法统计！Now, you are using edgeR Genewise Negative Binomial Generalized Linear Models!", sep=" "))
 
@@ -359,7 +332,7 @@ compare_DA = function(compare){
 	# Add MeanA and MeanB in percentage
 	# normlization to percentage
 	if (${normalization}){
-		norm = t(t(sub_dat)/colSums(sub_dat,na=T))* ${unit}
+		norm = t(t(sub_dat)/colSums(sub_dat,na=T))*100
 	}else{
 		norm = otutab * ${unit}
 	}
@@ -403,11 +376,12 @@ compare_DA = function(compare){
 	# 使用edgeR中的比较-相连，无法作为变量赋值，改为_
 	write.table(cbind(rownames(output),paste(group_list[1],"_", group_list[2], output\$level, sep="")), file=paste("${output}/diff.list", sep=""), append = TRUE, sep="\t", quote=F, row.names=F, col.names=F)
 
-    output=output[output\$level!="NotSig",]
-	# 保存筛选结果于sig.txt结尾文件中，无差异不输出
+	output=output[output\$level!="NotSig",]
 	if (dim(output)[1]>1){
-	write.table(paste(group_list[1],"_", group_list[2], "\t",sep=""), file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
+	# 保存筛选结果于sig.txt结尾文件中，无差异不输出
+	write.table(paste(SampAvsB, "\t",sep=""), file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
 	suppressWarnings(write.table(output, file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
+
 	}
 }
 
@@ -415,7 +389,7 @@ END
 
 elif [ $method = "wilcox" ]; then
 	
-cat <<END >>script/compare.R
+cat <<END >>script/compare_OTU2.R
 print(paste("你正在使用秩和检验！Now, you are using wilcoxon test!", sep=" "))
 
 compare_DA = function(compare){
@@ -424,17 +398,17 @@ compare_DA = function(compare){
 	SampAvsB=paste(group_list[1] ,"-", group_list[2], sep="")
 	idx = design\$group %in% group_list
 	sub_design=design[idx, , drop = F]
-#	sub_dat=as.matrix(otutab[,rownames(sub_design)])
-#
-#	# wilcoxon秩合检验，需要先标准化
-#	# normlization to percentage
-#	if (${normalization}){
-#		sub_norm = t(t(sub_dat)/colSums(sub_dat,na=T))* ${unit}
-#	}else{
-#		sub_norm = as.matrix(otutab) * ${unit} # 数据类型一致，计算后矩阵
-#	}
-    norm = as.data.frame(t(norm))
-    sub_norm = as.matrix(norm[rownames(filtered),])
+	idx = rownames(sub_design) %in% colnames(norm)
+	sub_design=sub_design[idx, , drop = F]
+	sub_dat=as.matrix(norm[,rownames(sub_design)])
+
+	# wilcoxon秩合检验，需要先标准化
+	# normlization to percentage
+	if (${normalization}){
+		sub_norm = t(t(sub_dat)/colSums(sub_dat,na=T))*100
+	}else{
+		sub_norm = as.matrix(norm) * ${unit} # 数据类型一致，计算后矩阵
+	}
 	# 建立两组的矩阵
 	idx = sub_design\$group %in% group_list[1]
 	GroupA = sub_norm[,rownames(sub_design[idx,,drop=F])]
@@ -505,6 +479,7 @@ compare_DA = function(compare){
 	if (dim(output)[1]>1){
 	write.table(paste(group_list[1],"_", group_list[2], "\t",sep=""), file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
 	suppressWarnings(write.table(output, file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
+	
 	}
 }
 
@@ -512,7 +487,7 @@ END
 
 elif [ $method = "t.test" ]; then
 	
-cat <<END >>script/compare.R
+cat <<END >>script/compare_OTU2.R
 print(paste("你正在使用秩和检验！Now, you are using wilcoxon test!", sep=" "))
 
 compare_DA = function(compare){
@@ -521,17 +496,15 @@ compare_DA = function(compare){
 	SampAvsB=paste(group_list[1] ,"-", group_list[2], sep="")
 	idx = design\$group %in% group_list
 	sub_design=design[idx, , drop = F]
-#	sub_dat=as.matrix(otutab[,rownames(sub_design)])
-#
-#	# wilcoxon秩合检验，需要先标准化
-#	# normlization to percentage
-#	if (${normalization}){
-#		sub_norm = t(t(sub_dat)/colSums(sub_dat,na=T))*100
-#	}else{
-#		sub_norm = as.matrix(otutab) * ${unit} # 数据类型一致，计算后矩阵
-#	}
-    norm = as.data.frame(t(norm))
-    sub_norm = as.matrix(norm[rownames(filtered),])
+	sub_dat=as.matrix(norm[,rownames(sub_design)])
+
+	# t.test检验，需要先标准化
+	# normlization to percentage
+	if (${normalization}){
+		sub_norm = t(t(sub_dat)/colSums(sub_dat,na=T))*100
+	}else{
+		sub_norm = as.matrix(norm) * ${unit} # 数据类型一致，计算后矩阵
+	}
 	# 建立两组的矩阵
 	idx = sub_design\$group %in% group_list[1]
 	GroupA = sub_norm[,rownames(sub_design[idx,,drop=F])]
@@ -592,24 +565,24 @@ compare_DA = function(compare){
 	NoN= dim(output[output\$level=="NotSig",])[1]
 	suppressWarnings(write.table(paste( SampAvsB, NoE, NoD, NoN, sep="\t"), file=paste("$output", "summary.txt",sep=""), append = T, quote = F, sep = '\t', row.names = F, col.names = F))
 
-	output=output[output\$level!="NotSig",]
+	# 保存差异列表用于维恩图展示 save each group DA OTU list for venndiagram
+	# 使用edgeR中的比较-相连，无法作为变量赋值，改为_
+	write.table(cbind(rownames(output),paste(group_list[1],"_", group_list[2], output\$level, sep="")), file=paste("${output}/diff.list", sep=""), append = TRUE, sep="\t", quote=F, row.names=F, col.names=F)
+
+	# 确保有差异才写入，否则会出不完整行
+    output=output[output\$level!="NotSig",]
 	# 保存筛选结果于sig.txt结尾文件中，无差异不输出
 	if (dim(output)[1]>1){
 	write.table(paste(group_list[1],"_", group_list[2], "\t",sep=""), file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
 	suppressWarnings(write.table(output, file=paste("$output", SampAvsB, "_sig.txt",sep=""), append = T, quote = F, sep = '\t', row.names = T))
-	
-	# 确保有差异才写入，否则会出不完整行
-	# 保存差异列表用于维恩图展示 save each group DA OTU list for venndiagram
-	# 使用edgeR中的比较-相连，无法作为变量赋值，改为_
-	write.table(cbind(rownames(output),paste(group_list[1],"_", group_list[2], output\$level, sep="")), file=paste("${output}/diff.list", sep=""), append = TRUE, sep="\t", quote=F, row.names=F, col.names=F)
-	}
+		}
 }
 
 END
 
 fi
 
-cat <<END >>script/compare.R
+cat <<END >>script/compare_OTU2.R
 
 # 记录各组间上、下调数量
 write.table("GroupAvsB\tEnriched\tDepleted\tNotSig\n", file=paste("$output", "summary.txt",sep=""), append = F, quote = F, eol = "", row.names = F, col.names = F)
@@ -646,6 +619,6 @@ if test "${execute}" == "TRUE";
 then
 	mkdir -p ${output}
 	rm -f ${output}/diff.list
-	Rscript script/compare.R
+	Rscript script/compare_OTU2.R
 	sed -i 's/Enriched/_E/;s/Depleted/_D/' ${output}/diff.list
 fi

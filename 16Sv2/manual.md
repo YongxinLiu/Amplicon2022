@@ -7,7 +7,8 @@
 	make beta_calc # 生成OTU表、过滤、物种注释、建库和多样性统计
 	# 清除统计绘图标记(重分析时使用)
 	rm -rf alpha_boxplot 
-	make DA_compare # 绘制alpha、beta、taxonomy和差异OTU比较
+	# make DA_compare # 绘制alpha、beta、taxonomy和差异OTU比较
+	make DA_compare2 # 采用先筛选measuable OTU，再进行差异比较的方案
 	#rm -f plot_volcano # 删除OTU差异比较可化标记
 	make plot_manhattan # 绘制差异比较的火山图、热图、曼哈顿图
 	make plot_venn # 绘制OTU差异共有/特有维恩图
@@ -66,6 +67,7 @@
 	# 按L1/2/3...txt拆分library为samples
 	# 输入为seq/L*.fq，输出为seq/sample/*.fq
 	make library_split
+    # 拆分结果可视化，需要设置g1参数的分组信息
 	make library_split_stat
 	# 统计结果见result/split有txt/pdf/png，推荐看png方便快速查看每张位图
 	# 查看样本量排序
@@ -107,7 +109,7 @@
 
 	# Remove redundancy, get unique reads
 	# 输入为temp/filtered.fa，输出为temp/uniques.fa
-	# 如最后一行输出数据据量53M，推荐阈值为53，筛选标准为百万分之一
+	# 推荐 minuniquesize 筛选标准最小为百万分之一(1/M)，如如最后一行输出数据量53M，阈值为53
 	make fa_unqiue
 
 

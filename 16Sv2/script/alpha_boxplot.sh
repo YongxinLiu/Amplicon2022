@@ -17,7 +17,7 @@ width=8
 g1=groupID
 g1_list=''
 figure_data=FALSE
-unit=1
+unit=100
 
 # 脚本功能描述 Function for script description and usage
 usage()
@@ -237,9 +237,7 @@ if ($transposition){
 
 # 标准化数据矩阵
 if ($normalization){
-	alpha = as.data.frame(alpha/rowSums(alpha,na=T) * 100) # normalization to 1000
-}else{
-	alpha = alpha * ${unit}
+	alpha = as.data.frame(alpha/rowSums(alpha,na=T) * ${unit}) # normalization to 1000
 }
 
 
@@ -263,7 +261,9 @@ sub_design=sub_design[idx, , drop=F]
 sub_alpha=alpha[rownames(sub_design),]
 
 # 合并Alpha指数与实验设计 add design to alpha
-index = cbind(sub_alpha, sub_design) 
+index = cbind(sub_alpha, sub_design\$group) 
+colnames(index)[dim(index)[2]]="group"
+table(sub_design\$group)
 
 
 
@@ -291,9 +291,13 @@ for(m in method){
 	min=min(index[,c(m)])
 	x = index[,c("group",m)]
 	y = x %>% group_by(group) %>% summarise_(Max=paste('max(',m,')',sep=""))
+	suppressWarnings(write.table(index[,c(m,"group")], file=paste("${output}",m,"_raw.txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T))
 	y=as.data.frame(y)
 	rownames(y)=y\$group
 	index\$y=y[as.character(index\$group),]\$Max + (max-min)*0.05
+
+	group_mean = x %>% group_by(group) %>% summarise_all(mean)
+	suppressWarnings(write.table(t(group_mean), file=paste("${output}",m,"_mean.txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = F))
 	
 # 输出原始数据，方便筛选 
 if (${figure_data}){
@@ -302,7 +306,7 @@ if (${figure_data}){
 }
 
 	p = ggplot(index, aes(x=group, y=index[[m]], color=group)) +
-		geom_boxplot(alpha=1, outlier.size=0, size=0.7, width=0.5, fill="transparent") +
+		geom_boxplot(alpha=1, outlier.shape = NA, outlier.size=0, size=0.7, width=0.5, fill="transparent") +
 		labs(x="Groups", y=paste(m, "")) + theme_classic() + main_theme +
 		geom_text(data=index, aes(x=group, y=y, color=group, label= stat)) +
 		geom_jitter( position=position_jitter(0.17), size=1, alpha=0.7)

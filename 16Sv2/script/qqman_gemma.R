@@ -39,7 +39,7 @@ for(p in package_list){
 # 解析参数-h显示帮助信息
 if (TRUE){
   option_list <- list(
-    make_option(c("-i", "--input"), type="character", default="output/6.assoc.txt.sig",
+    make_option(c("-i", "--input"), type="character", default="emmax/PositiveControl.qqman",
                 help="Input table file to read; Gemma结果pvalu文件 [default %default]"),
     make_option(c("-t", "--type"), type="numeric", default="14",
                 help="column of pvalue; P值所在列 [default %default]"),

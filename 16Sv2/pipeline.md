@@ -144,7 +144,7 @@ fq_qc: fq_trim
 
 ## 1.6 序列去冗余 Remove redundancy
 # miniuniqusize为8，去除低丰度，增加计算速度
-fa_unqiue: 
+fa_unique: 
 	touch $@
 	usearch11 -fastx_uniques temp/filtered.fa \
 		-minuniquesize ${minuniquesize} -sizeout \
@@ -167,7 +167,7 @@ fa_unqiue:
 	# 可选97% cluster_otus，或100% unoise3，默认unoise3，不支持多线程
 	# ifeq条件必须顶格，否则报错
 
-otu_pick: fa_unqiue
+otu_pick: fa_unique
 	touch $@
 	echo -e "OTU method\t${otu_method}" >> ${otu_log}
 ifeq (${otu_method}, unoise3)
@@ -175,7 +175,7 @@ ifeq (${otu_method}, unoise3)
 	usearch10 -unoise3 temp/uniques.fa -zotus temp/Zotus.fa -minsize ${minuniquesize}
 else ifeq (${otu_method}, cluster_otus)
 	# cluster_otus无法修改聚类参数，想使用不同聚类相似度，使用cluster_smallmem命令
-	usearch10 -cluster_otus temp/uniques.fa -otus temp/Zotus.fa
+	usearch10 -cluster_otus temp/uniques.fa -otus temp/Zotus.fa -minsize ${minuniquesize}
 else
 	# 其它：没有提供正确的方法名称，报错提示
 	$(error "Please select the right method: one of in unoise3 or cluster_otus") 
@@ -576,6 +576,25 @@ DA_compare: tax_stackplot
 		-d ${Dc_design} -A ${Dc_group_name} -B ${Dc_group_list} \
 		-o ${Dc_output} #  -C ${Dc_group_name2}
 
+### 差异比较拆分两步：筛选measurable OTU和差异比较 2020/1/15
+
+measurable_OTU: tax_stackplot
+	touch $@
+	measurable_OTU.sh -i ${Dc_input} -t ${abundance_thre} \
+		-d ${Dc_design} -A ${Dc_group_name} -B ${Dc_group_list} \
+		-o result/
+
+DA_compare2: measurable_OTU
+	touch DA_compare
+	touch $@
+	rm -fr ${Dc_output}
+	mkdir -p ${Dc_output}
+	compare_OTU2.sh -i ${Dc_input} -r result/otutab_measurable_norm.txt \
+		-c ${Dc_compare} -m ${Dc_method} \
+		-p ${Dc_pvalue} -q ${Dc_FDR} -F ${Dc_FC} \
+		-d ${Dc_design} -A ${Dc_group_name} \
+		-o ${Dc_output}
+
 ### 计算门纲目科属水平秩合检验差异，绘图维恩图，并对维恩图中各部分进行重叠
 DA_compare_tax: tax_stackplot
 	touch $@
@@ -641,7 +660,7 @@ plot_heatmap: plot_volcano
 	# plot_heatmap.sh -i result/compare/V3703HnCp6-ZH11HnCp6_sig.txt -o result/compare/V3703HnCp6-ZH11HnCp6 -w 5 -h 7
 	# awk调用批量绘制文件，grep -v删空行
 	awk 'BEGIN{OFS=FS="\t"}{system("plot_heatmap.sh -i result/compare/"$$1"-"$$2"_sig.txt \
-		-o result/compare/"$$1"-"$$2" -w ${ph_width} -h ${ph_height} -C ${cluster_cols}");}' \
+		-o result/compare/"$$1"-"$$2" -w ${ph_width} -h ${ph_height} -A ${g1} -C ${cluster_cols}");}' \
 		<(grep -v '^$$' ${Dc_compare})
 
 plot_heatmap_tax: DA_compare_tax

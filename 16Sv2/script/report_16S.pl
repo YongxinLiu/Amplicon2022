@@ -574,6 +574,7 @@ print OUTPUT qq!
 - OTU表 [Count TXT](result/otutab.txt) [Count biom](result/otutab.biom) [抽样1万标准化 TXT](result/otutab_norm.txt) [抽样1万标准化 biom](result/otutab_norm.biom) [Greengene Count txt](result/otutab_gg.txt)  
 - 代表性序列 [fasta](result/otu.fa) [tree](result/otu.tree)
 - 物种注释 [2列格式](result/taxonomy_2.txt) [8列格式](result/taxonomy_8.txt)
+- 所有差异特征ID列表 [2列格式](result/compare/diff.list)
 
 !;
 close OUTPUT;
