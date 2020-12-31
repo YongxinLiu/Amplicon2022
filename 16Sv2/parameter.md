@@ -19,7 +19,8 @@ SHELL:=/bin/bash
 	usearch_gg=/mnt/bai/public/ref/gg_13_5_otus/97_otus_usearch.udb
 	## Silva 132 database, fa for usearch format, udb for usearch index
 	usearch_silva=/mnt/bai/public/ref/silva/SILVA_132_SSURef_Nr99_tax_silva.udb
-	usearch_rdp=/mnt/bai/public/ref/rdp/rdp_16s_v16_sp.udb
+	#usearch_rdp=/mnt/bai/public/ref/rdp/rdp_16s_v16_sp.udb
+	usearch_rdp=/mnt/zhou/zhiwen/new_rdp/RDPClassifier_16S_trainsetNo18_rawtrainingdata/trainset18_062020_format_assign.udp
 
 ## 1.1. lane_split 拆分下机数据为文库
 

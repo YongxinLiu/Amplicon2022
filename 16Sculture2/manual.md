@@ -394,6 +394,11 @@
     grep -c '>' merge.fa # 682
     makeblastdb -dbtype nucl -in  merge.fa
 
+    # 多批全长
+    cat ??????.fa > temp/merge_full.fa
+    format_fasta_1line.pl -i temp/merge_full.fa -o temp/merge_full1.fa
+    sed -i '1 i StockID\tFullLength16S' temp/merge_full1.fa.tsv # | less -S
+
     # 菌保分析
 	extract.pl merge.fa > temp/merge_uniq.fa
     cut -f 1 -d ',' temp/merge_uniq.fa > merge_uniq.fa

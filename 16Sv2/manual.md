@@ -66,12 +66,19 @@
 
 	# 按L1/2/3...txt拆分library为samples
 	# 输入为seq/L*.fq，输出为seq/sample/*.fq
+	# 调用perl时版本错误，parallel无法运行，手动调perl5lib即可
+	PERL5LIB=~/miniconda2/envs/kraken2/lib/site_perl/5.26.2/x86_64-linux-thread-multi:~/miniconda2/envs/kraken2/lib/site_perl/5.26.2:~/miniconda2/envs/kraken2/lib/5.26.2/x86_64-linux-thread-multi:~/miniconda2/envs/kraken2/lib/5.26.2
 	make library_split
     # 拆分结果可视化，需要设置g1参数的分组信息
 	make library_split_stat
 	# 统计结果见result/split有txt/pdf/png，推荐看png方便快速查看每张位图
 	# 查看样本量排序
 	sort -k2,2n result/sample_split.log|less
+
+	# 找不到perl模块，手动指定perl位置即可
+	# Fcntl.c: loadable library and perl binaries are mismatched (got handshake key 0xdb00080, needed 0xde00080)
+	e=/mnt/bai/yongxin/miniconda2/envs/kraken2
+	PERL5LIB=${e}/lib/5.26.2:${e}/lib/5.26.2/x86_64-linux-thread-multi
 
 ## 1.3. 样品双端合并、重命名、合并为单一文件
 
@@ -136,20 +143,20 @@
 
 
     # (第二阶段结束，获得OTU代表序列result/otu.fa，可提供此文件和测序数据temp/filtered.fa从下方起始)
-
-
+	
 ## 1.10. 生成OTU表
 	
 	# Create OTUs table
 	# 默认使用vsearch更快10倍，可选usearch10，线程不可超48
 	make otutab_create
 
-
 ## 1.11. 过滤样本和OTUs
 
 	# OTU table filter samples and OTU
-	# 推荐过滤低测序量<5000的样本，筛选大于1RPM的OTU
+	# 推荐过滤低测序量<5000的样本，筛选大于1RPM的OTU，设置最小采样量
 	make otutab_filter 
+	# 设置最小采样量
+	make otutab_norm 
 
 
 ## 1.12. 物种注释
