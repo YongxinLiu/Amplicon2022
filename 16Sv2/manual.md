@@ -67,9 +67,11 @@
 	# 按L1/2/3...txt拆分library为samples
 	# 输入为seq/L*.fq，输出为seq/sample/*.fq
 	# 调用perl时版本错误，parallel无法运行，手动调perl5lib即可
-	PERL5LIB=~/miniconda2/envs/kraken2/lib/site_perl/5.26.2/x86_64-linux-thread-multi:~/miniconda2/envs/kraken2/lib/site_perl/5.26.2:~/miniconda2/envs/kraken2/lib/5.26.2/x86_64-linux-thread-multi:~/miniconda2/envs/kraken2/lib/5.26.2
+	e=/mnt/bai/yongxin/miniconda2/envs/kraken2
+	PERL5LIB=${e}/lib/5.26.2:${e}/lib/5.26.2/x86_64-linux-thread-multi
+
 	make library_split
-    # 拆分结果可视化，需要设置g1参数的分组信息
+	# 拆分结果可视化，需要设置g1参数的分组信息
 	make library_split_stat
 	# 统计结果见result/split有txt/pdf/png，推荐看png方便快速查看每张位图
 	# 查看样本量排序
@@ -77,8 +79,6 @@
 
 	# 找不到perl模块，手动指定perl位置即可
 	# Fcntl.c: loadable library and perl binaries are mismatched (got handshake key 0xdb00080, needed 0xde00080)
-	e=/mnt/bai/yongxin/miniconda2/envs/kraken2
-	PERL5LIB=${e}/lib/5.26.2:${e}/lib/5.26.2/x86_64-linux-thread-multi
 
 ## 1.3. 样品双端合并、重命名、合并为单一文件
 
@@ -109,7 +109,7 @@
 
 
 
-    # (第一阶段结束，获得纯净扩增子序列temp/filtered.fa，可提供此文件从下面开始)
+	# (第一阶段结束，获得纯净扩增子序列temp/filtered.fa，可提供此文件从下面开始)
 
 
 ## 1.6. 序列去冗余
@@ -117,7 +117,7 @@
 	# Remove redundancy, get unique reads
 	# 输入为temp/filtered.fa，输出为temp/uniques.fa
 	# 推荐 minuniquesize 筛选标准最小为百万分之一(1/M)，如如最后一行输出数据量53M，阈值为53
-	make fa_unqiue
+	make fa_unique
 
 
 ## 1.7. 挑选OTU

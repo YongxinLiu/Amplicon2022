@@ -190,7 +190,7 @@ cat <<END >script/alpha_boxplot.R
 site="https://mirrors.tuna.tsinghua.edu.cn/CRAN"
 # 依赖包列表：参数解析、数据变换、绘图和开发包安装、安装依赖、ggplot主题
 package_list = c("reshape2","ggplot2","devtools","bindrcpp",
-				"ggthemes","dplyr","multcompView") # ,"agricolae"
+				"ggthemes","dplyr","multcompView","agricolae") # 
 # 判断R包加载是否成功来决定是否安装后再加载
 for(p in package_list){
 	if(!suppressWarnings(suppressMessages(require(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
@@ -305,15 +305,20 @@ for(m in method){
 	# 保存统计结果，有waring正常
 	suppressWarnings(write.table(Tukey_HSD_table, file=paste("${output}",m,".txt",sep=""), append = T, quote = F, sep="\t", eol = "\n", na = "NA", dec = ".", row.names = T, col.names = T))
 
-#	# LSD检验，添加差异组字母
-#	out = LSD.test(model,"group", p.adj="none") # alternative fdr
-#	stat = out\$groups
-#	# 分组结果添入Index
-#	index\$stat=stat[as.character(index\$group),]\$groups
+ # 当只有两组时，用LSD标注字母
+  if (length(unique(index\$group)) == 2){
+    # LSD检验，添加差异组字母
+    library(agricolae)
+    out = LSD.test(model, "group", p.adj="none")
+    stat = out\$groups
+    # 分组结果添入Index
+	index\$stat=stat[as.character(index\$group),]\$groups
+    }else{
     # 基于anova直接添加字母
     LABELS = generate_label_df(Tukey_HSD , "index\$group")
     index\$stat=LABELS[as.character(index\$group),]\$Letters
-    
+    }
+
     # 设置分组位置为各组y最大值+高的5%
 	max=max(index[,c(m)])
 	min=min(index[,c(m)])
