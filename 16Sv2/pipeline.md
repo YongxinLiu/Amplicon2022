@@ -149,15 +149,15 @@ fa_unique:
 	usearch11 -fastx_uniques temp/filtered.fa \
 		-minuniquesize ${minuniquesize} -sizeout \
 		-fastaout temp/uniques.fa -threads ${p}
-#	vsearch --derep_fulllength temp/filtered.fa \
-#		--relabel Uni --minuniquesize ${minuniquesize} --sizeout \
-#		--output temp/uniques.fa
+	#	vsearch --derep_fulllength temp/filtered.fa \
+	#		--relabel Uni --minuniquesize ${minuniquesize} --sizeout \
+	#		--output temp/uniques.fa
 	echo -ne 'Unique reads\t' > ${otu_log}
 	grep -c '>' temp/uniques.fa >> ${otu_log}
 	cat ${otu_log}
-# 注：usearch10内存使用达243Gb时7:15，报错---Fatal error---../seqdb.cpp(321): mymalloc(536870912, 8) overflow，可能是超过内存限制
-# 尝试用usearch11 5:09，与usearch10同样错误
-# 尝试用vsearch，1小时很快完成， vsearch --derep_fulllength temp/filtered.fa --output temp/uniques.fa --relabel Uni --minuniquesize 500 --sizeout
+	# 注：usearch10内存使用达243Gb时7:15，报错---Fatal error---../seqdb.cpp(321): mymalloc(536870912, 8) overflow，可能是超过内存限制
+	# 尝试用usearch11 5:09，与usearch10同样错误
+	# 尝试用vsearch，1小时很快完成， vsearch --derep_fulllength temp/filtered.fa --output temp/uniques.fa --relabel Uni --minuniquesize 500 --sizeout
 
 
 
@@ -279,9 +279,12 @@ otutab_sample_count:
 	# 对OTU表生成的样本量可视化，与拆库的比较
 	sed -i 's/\: /\t/' temp/otutab.biom.sum
 	mkdir -p result/otutab
-	echo -ne "${s}\t" >> result/split/${l}.txt; wc -l seq/sample/${s}_1.fq | awk '{print $1/4}' >>  result/split/${l}.txt; done; \
-	awk 'BEGIN{FS=OFS="\t"} NR==FNR{a[$1]=$2} NR>FNR{print $1,a[$1]}' temp/otutab.biom.sum result/split/${l}.txt > result/otutab/${l}.txt
-	plot_bar_library.sh -i result/otutab/${l}.txt -d doc/design.txt -o result/otutab/${l} -A groupID -l ${l};\
+	for l in `tail -n+2 doc/library.txt|cut -f1`;do
+	rm -rf result/split/$${l}.txt
+	for s in `tail -n+2 doc/$${l}.txt|cut -f1`;do
+	echo -ne "$${s}\t" >> result/split/$${l}.txt; zcat seq/sample/$${s}_1.fq |wc -l | awk '{print $$1/4}' >>  result/split/$${l}.txt; done
+	awk 'BEGIN{FS=OFS="\t"} NR==FNR{a[$$1]=$$2} NR>FNR{print $$1,a[$$1]}' temp/otutab.biom.sum result/split/$${l}.txt > result/otutab/$${l}.txt
+	plot_bar_library.sh -i result/otutab/$${l}.txt -d doc/design.txt -o result/otutab/$${l} -A ${g1} -l $${l}
 	done
 
 
@@ -375,6 +378,9 @@ tax_sum: tax_assign
 
 tree_make: tax_sum
 	touch $@
+ifeq (${tree_method}, usearch10)
+	usearch10 -cluster_agg result/otu.fa -treeout result/otus.tree
+else ifeq (${tree_method}, qiime)
 	# Reference based alignment
 	#align_seqs.py -i result/otu.fa -t /mnt/bai/public/ref/gg_13_8_otus/rep_set_aligned/97_otus.fasta -o temp/aligned/
 	# clustalo+qiime1.9.1
@@ -383,6 +389,11 @@ tree_make: tax_sum
 	#filter_alignment.py -i temp/otu_align.fa  -o temp/
 	#make_phylogeny.py -i temp/otu_align_pfiltered.fasta -o result/otu.tree
 	make_phylogeny.py -i temp/otu_align.fa -o result/otu.tree
+else
+	# 其它：没有提供正确的方法名称，报错提示
+	$(error "Please select the right method: one of in usearch10 or qiime, mafft") 
+endif
+
 
 # 1.15 Alpha多样性指数计算 Calculate alpha diversity index
 
@@ -491,7 +502,6 @@ beta_pcoa2: beta_calc2
 clean:
 	pigz seq/L*.fq
 	rm -r temp/
-
 
 
 

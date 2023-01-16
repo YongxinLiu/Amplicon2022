@@ -34,12 +34,10 @@ Website:     https://blog.csdn.net/woodcorpse
 Description: Based on usearch alph_div, draw alpha boxplot and statistics, also can draw any matrix to boxplot by selected group and feature
 Notes:       Statistic alpha by aov and TukeyHSD
 -------------------------------------------------------------------------------
-Copyright:   2018 (c) Yong-Xin Liu
+Copyright:   2016-2022 (c) Yong-Xin Liu
 License:     GPL
 If used this script, please cited:
-Zhang, J., Zhang, N., Liu, Y.X., Zhang, X., Hu, B., Qin, Y., Xu, H., Wang, H., Guo, X., Qian, J., et al. (2018).
-Root microbiota shift in rice correlates with resident time in the field and developmental stage. Sci China Life Sci 61, 
-https://doi.org/10.1007/s11427-018-9284-4
+Yong-Xin Liu, Yuan Qin, Tong Chen, Meiping Lu, Xubo Qian, Xiaoxuan Guo, Yang Bai. 2021. A practical guide to amplicon and metagenomic analysis of microbiome data. Protein Cell 12: 315-330. https://doi.org/10.1007/s13238-020-00724-8
 -------------------------------------------------------------------------------
 Version 1.0 2018/4/5
 Based on usearch alph_div and design, draw alpha boxplot and statistics.
@@ -249,7 +247,7 @@ generate_label_df = function(TUKEY, variable){
 # 3. 读取输入文件
 
 # 读取usearch alpha文件
-alpha = read.table("${input}", header=T, row.names=1, sep="\t", comment.char="") 
+alpha = read.table("${input}", header=T, row.names=1, sep="\t", comment.char="", quote = "") 
 
 # 转置数据矩阵
 if ($transposition){
@@ -265,7 +263,7 @@ if ($normalization){
 
 
 # 读取实验设计
-design = read.table("${design}", header=T, row.names=1, sep="\t")
+design = read.table("${design}", header=T, row.names=1, sep="\t", quote = "")
 # 统一改实验列为group
 design\$group=design\$${g1}
 

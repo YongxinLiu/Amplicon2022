@@ -39,7 +39,7 @@ Website:     https://blog.csdn.net/woodcorpse
 Description: Draw heatmap plot by compare result, must have logFC, logCPM and level
 Notes:       
 -------------------------------------------------------------------------------
-Copyright:   2018 (c) Yong-Xin Liu
+Copyright:   2016-2022 (c) Yong-Xin Liu
 License:     GPL
 If used this script, please cited:
 Zhang, J., Zhang, N., Liu, Y.X., Zhang, X., Hu, B., Qin, Y., Xu, H., Wang, H., Guo, X., Qian, J., et al. (2018).
@@ -223,10 +223,10 @@ for(p in package_list){
 # 3. 读取输入文件
 
 # 读取比较列表
-input = read.table("${input}", header=T, row.names=1, sep="\t", comment.char="", stringsAsFactors =F)
+input = read.table("${input}", header=T, row.names=1, sep="\t", comment.char="", stringsAsFactors =F, quote = "")
 #input\$level=factor(input\$level,levels = c("Enriched","Depleted"))
 
-design = read.table("${design}", header=T, row.names=1, sep="\t", comment.char="")
+design = read.table("${design}", header=T, row.names=1, sep="\t", comment.char="", quote = "")
 # 统一改实验列为group
 design\$group = design\$${g1}
 

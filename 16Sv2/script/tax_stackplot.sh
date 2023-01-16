@@ -32,7 +32,7 @@ Website:     https://blog.csdn.net/woodcorpse
 Description: Stackplot of each taxonomy level
 Notes:       
 -------------------------------------------------------------------------------
-Copyright:   2018 (c) Yong-Xin Liu
+Copyright:   2016-2022 (c) Yong-Xin Liu
 License:     GPL
 If used this script, please cited:
 Zhang, J., Zhang, N., Liu, Y.X., Zhang, X., Hu, B., Qin, Y., Xu, H., Wang, H., Guo, X., Qian, J., et al. (2018).
@@ -202,7 +202,7 @@ for(p in package_list){
 # 3. 读取输入文件
 
 # 读取实验设计
-design = read.table("${design}", header=T, row.names=1, sep="\t")
+design = read.table("${design}", header=T, row.names=1, sep="\t", quote = "")
 # 统一改实验列为group
 design\$group = design\$${g1}
 
@@ -220,7 +220,7 @@ if ($select1){
 method = c(${method})
 for(m in method){
 	# 读取usearch tax文件
-	tax_sample = read.table(paste("${input}", m, ".txt", sep=""), header=T, row.names=1, sep="\t", comment.char="") 
+	tax_sample = read.table(paste("${input}", m, ".txt", sep=""), header=T, row.names=1, sep="\t", comment.char="", quote = "") 
 
 	# 按丰度降序排序
 	mean_sort = tax_sample[(order(-rowSums(tax_sample))), ]

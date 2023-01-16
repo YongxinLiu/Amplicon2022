@@ -21,21 +21,22 @@ cat <<EOF >&2
 Usage:
 -------------------------------------------------------------------------------
 Filename:    alpha_rare.sh
-Version:     1.0
-Date:        2018/4/5
+Version:     1.1
+Date:        2022/9/1
 Author:      Yong-Xin Liu
 Email:       metagenome@126.com
 Website:     https://blog.csdn.net/woodcorpse
 Description: Based on usearch -alpha_div_rare, draw alpha rarefracation curve
 Notes:       Draw line plot in samples and groups
 -------------------------------------------------------------------------------
-Copyright:   2018 (c) Yong-Xin Liu
+Copyright:   2016-2022 (c) Yong-Xin Liu
 License:     GPL
 If used this script, please cited:
-Zhang, J., Zhang, N., Liu, Y.X., Zhang, X., Hu, B., Qin, Y., Xu, H., Wang, H., Guo, X., Qian, J., et al. (2018).
-Root microbiota shift in rice correlates with resident time in the field and developmental stage. Sci China Life Sci 61, 
-https://doi.org/10.1007/s11427-018-9284-4
+Yong-Xin Liu, Yuan Qin, Tong Chen, Meiping Lu, Xubo Qian, Xiaoxuan Guo, Yang Bai. 2021. A practical guide to amplicon and metagenomic analysis of microbiome data. Protein Cell 12: 315-330. https://doi.org/10.1007/s13238-020-00724-8
 -------------------------------------------------------------------------------
+Version 1.1 2022/9/1
+Update to R4.x.x
+
 Version 1.0 2018/4/5
 Based on usearch -alpha_div_rare and design, draw rarefracation curve line plot in samples and groups
 
@@ -151,7 +152,7 @@ cat <<END >script/alpha_rare.R
 # 2.1 安装CRAN来源常用包
 site="https://mirrors.tuna.tsinghua.edu.cn/CRAN"
 # 依赖包列表：参数解析、数据变换、绘图和开发包安装、安装依赖、ggplot主题
-package_list = c("reshape2","ggplot2")
+package_list = c("reshape2","ggplot2","devtools")
 # 判断R包加载是否成功来决定是否安装后再加载
 for(p in package_list){
 	if(!suppressWarnings(suppressMessages(require(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))){
@@ -186,10 +187,10 @@ for(p in package_list){
 # 3. 读取输入文件
 
 # 读取usearch alpha文件
-rare = read.table("${input}", header=T, row.names=1, sep="\t", comment.char="") 
+rare = read.table("${input}", header=T, row.names=1, sep="\t", comment.char="", quote = "") 
 
 # 读取实验设计
-design = read.table("${design}", header=T, row.names=1, sep="\t")
+design = read.table("${design}", header=T, row.names=1, sep="\t", quote = "")
 # 统一改实验列为group
 design\$group=design\$${g1}
 

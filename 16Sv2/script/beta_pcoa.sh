@@ -32,12 +32,10 @@ Website:     https://blog.csdn.net/woodcorpse
 Description: Based on distance matrix and design, draw beta pcoa and statistics 
 Notes:       adnois: Permutational Multivariate Analysis of Variance Using Distance Matrices
 -------------------------------------------------------------------------------
-Copyright:   2018 (c) Yong-Xin Liu
+Copyright:   2016-2022 (c) Yong-Xin Liu
 License:     GPL
 If used this script, please cited:
-Zhang, J., Zhang, N., Liu, Y.X., Zhang, X., Hu, B., Qin, Y., Xu, H., Wang, H., Guo, X., Qian, J., et al. (2018).
-Root microbiota shift in rice correlates with resident time in the field and developmental stage. Sci China Life Sci 61, 
-https://doi.org/10.1007/s11427-018-9284-4
+Yong-Xin Liu, Yuan Qin, Tong Chen, Meiping Lu, Xubo Qian, Xiaoxuan Guo, Yang Bai. 2021. A practical guide to amplicon and metagenomic analysis of microbiome data. Protein Cell 12: 315-330. https://doi.org/10.1007/s13238-020-00724-8
 -------------------------------------------------------------------------------
 Version 1.0 2018/4/5
 Based on QIIME beta_diversity.py and design, draw beta pcoa and statistics.
@@ -147,12 +145,10 @@ mkdir -p script
 cat <<END >script/beta_pcoa.R
 #!/usr/bin/env Rscript
 # 
-# Copyright 2016-2018 Yong-Xin Liu <metagenome@126.com>
+# Copyright 2016-2022 Yong-Xin Liu <metagenome@126.com>
 
 # If used this script, please cited:
-#   Zhang, J., Zhang, N., Liu, Y.X., Zhang, X., Hu, B., Qin, Y., Xu, H., Wang, H., Guo, X., Qian, J., et al. (2018).
-# Root microbiota shift in rice correlates with resident time in the field and developmental stage. Sci China Life Sci 61, 
-# https://doi.org/10.1007/s11427-018-9284-4
+# Yong-Xin Liu, Yuan Qin, Tong Chen, Meiping Lu, Xubo Qian, Xiaoxuan Guo, Yang Bai. 2021. A practical guide to amplicon and metagenomic analysis of microbiome data. Protein Cell 12: 315-330. https://doi.org/10.1007/s13238-020-00724-8
 
 # 手动运行脚本请，需要设置工作目录，使用 Ctrl+Shift+H 或 Session - Set Work Directory - Choose Directory / To Source File Location 设置工作目录
 
@@ -225,7 +221,7 @@ da_adonis = function(sampleV){
 # 3. 读取输入文件
 
 # 读取实验设计
-design = read.table("${design}", header=T, row.names=1, sep="\t")
+design = read.table("${design}", header=T, row.names=1, sep="\t", quote = "")
 # 统一改实验列为group
 design\$group=design\$${g1}
 
@@ -246,7 +242,7 @@ if ($select1){
 method = c(${method})
 for(m in method){
 	# 读取usearch beta文件
-	beta = read.table(paste("${input}",m,".txt",sep=""), header=T, row.names=1, sep="\t", comment.char="") 
+	beta = read.table(paste("${input}",m,".txt",sep=""), header=T, row.names=1, sep="\t", comment.char="", quote = "") 
 	write.table(paste("#Permutational Multivariate Analysis of Variance Using Distance Matrices\nDistanceMatrices\tGroupA\tGroupB\tP-value",  sep=""), 
 				file=paste("$output", m, ".stat", sep=""), append = F, sep="\t", quote=F, row.names=F, col.names=F)
 
